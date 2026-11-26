@@ -23,6 +23,25 @@ e [manda un resoconto](https://github.com/alfo152/unifi-access-family-router/iss
 Con le impostazioni di partenza il programma scrive solo nel log: non
 squilla nulla e non apre nessuna porta.
 
+**Verifica in 5 minuti senza Home Assistant:** basta Python 3.8+ su un
+computer che raggiunge la console. Lo script [`tools/watch_calls.py`](tools/watch_calls.py)
+ascolta e basta.
+
+1. In UniFi Access: *Settings → General → Advanced → API Token*
+   (Impostazioni → Generali → Avanzate), crea un token con il solo permesso **view:device** (non può aprire porte;
+   cancellalo dopo la prova).
+2. Scarica e avvia lo script:
+
+   ```sh
+   curl -O https://raw.githubusercontent.com/alfo152/unifi-access-family-router/main/tools/watch_calls.py
+   python3 watch_calls.py IP_DELLA_CONSOLE
+   ```
+
+   Su Windows al posto di `python3` scrivi `py`.
+
+3. Incolla il token quando lo chiede, chiama ogni voce della rubrica una
+   volta, premi **Ctrl+C** e condividi il riepilogo (non contiene il token).
+
 ---
 
 ## Cosa serve

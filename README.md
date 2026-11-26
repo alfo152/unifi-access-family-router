@@ -39,6 +39,28 @@ The single most useful answer: **does each directory entry show a different
 unlock off) the router only logs: nothing rings and no door is unlocked.
 Remove tokens and passwords from anything you paste.
 
+### Five-minute check without Home Assistant
+
+No Home Assistant, Homebridge or MQTT? [`tools/watch_calls.py`](tools/watch_calls.py)
+answers the same question with nothing but Python 3.8+ on a computer that
+reaches the console. It only listens.
+
+1. In UniFi Access: *Settings → General → Advanced → API Token*, create a
+   token with only the **view:device** permission (it cannot open doors;
+   delete it after the test).
+2. Download and run the script:
+
+   ```sh
+   curl -O https://raw.githubusercontent.com/alfo152/unifi-access-family-router/main/tools/watch_calls.py
+   python3 watch_calls.py CONSOLE_IP
+   ```
+
+   On Windows, use `py` instead of `python3`.
+
+3. Paste the token when asked, call each directory entry once from the
+   intercom, press **Ctrl+C** and share the summary it prints (no token
+   inside).
+
 ---
 
 ## How it works

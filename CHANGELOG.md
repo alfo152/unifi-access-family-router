@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `tools/watch_calls.py`: standalone, read-only check (Python 3.8+, standard
+  library only) that prints the `room_id` of every intercom call and says
+  whether different directory entries produce different `room_id`s. No Home
+  Assistant, Homebridge or MQTT needed.
+
 ## 0.1.1 - 2026-11-26
 
 - Add-on: without the Mosquitto broker the log no longer shows the
