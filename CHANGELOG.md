@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 - 2026-11-26
+
+- Add-on: without the Mosquitto broker the log no longer shows the
+  Supervisor's "Service not enabled" ERROR; a clear warning explains how to
+  add a broker instead.
+- README/LEGGIMI: one-click "Add repository" button and tester call.
+- GitHub issue forms for test reports and bugs.
+
 ## 0.1.0 - 2026-11-26
 
 First release.

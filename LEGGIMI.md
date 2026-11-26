@@ -12,7 +12,7 @@ Ogni famiglia ha **la sua copia**: suo token, suo broker MQTT, suo
 Homebridge, suo Home Assistant. In comune ci sono solo il citofono e la
 console nell'armadio delle scale.
 
-> Stato: versione 0.1.0, verificata con test automatici basati sulla
+> Stato: versione 0.1.1, verificata con test automatici basati sulla
 > documentazione ufficiale delle API e con la simulazione di un palazzo con
 > 3 famiglie. Va confermata sul G3 Intercom vero con la
 > [lista di prova](docs/testing-checklist.md).

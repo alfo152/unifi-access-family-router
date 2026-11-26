@@ -31,7 +31,7 @@ class CliBasicsTests(unittest.IsolatedAsyncioTestCase):
     async def test_version(self) -> None:
         code, out, _ = await run_cli("--version")
         self.assertEqual(code, 0)
-        self.assertIn("0.1.0", out)
+        self.assertIn("0.1.1", out)
 
     async def test_missing_and_invalid_config(self) -> None:
         code, _, err = await run_cli("--config", "/nonexistent.yaml")

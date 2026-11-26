@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unifi-access-family-router"
-version = "0.1.0"
+version = "0.1.1"
 description = "Ring only the called family on a UniFi Access intercom (Apple Home via Homebridge, Home Assistant via MQTT)."
 readme = "README.md"
 license = { text = "MIT" }

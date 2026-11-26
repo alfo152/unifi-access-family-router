@@ -5,4 +5,4 @@ directory entry the visitor called, through that family's own MQTT broker,
 Homebridge (Apple Home) and Home Assistant.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

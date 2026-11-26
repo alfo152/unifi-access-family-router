@@ -17,7 +17,7 @@ Every family runs its **own copy**, with its own API token, its own MQTT
 broker, its own Homebridge and its own Home Assistant. Nothing is shared
 except the intercom and the UniFi console in the stairwell.
 
-> **Status:** 0.1.0. Verified with an automated test suite built on the
+> **Status:** 0.1.1. Verified with an automated test suite built on the
 > official UniFi Access API reference (v4.2.16) and a simulated 3-family
 > building. Not yet confirmed on real G3 Intercom hardware: see
 > [Known limitations](#known-limitations) and run the
