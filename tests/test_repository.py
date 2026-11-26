@@ -111,6 +111,38 @@ class RepositoryTests(unittest.TestCase):
                     continue
                 self.assertTrue((md.parent / target).exists(), f"{md.name}: broken link {target}")
 
+    def test_issue_forms(self) -> None:
+        """GitHub issue forms are valid and the README links point to them."""
+
+        forms_dir = ROOT / ".github" / "ISSUE_TEMPLATE"
+        forms = sorted(p for p in forms_dir.glob("*.yml") if p.name != "config.yml")
+        self.assertTrue(forms)
+        allowed = {"markdown", "input", "textarea", "dropdown", "checkboxes"}
+        for form_path in forms:
+            form = yaml.safe_load(form_path.read_text())
+            for key in ("name", "description", "body"):
+                self.assertTrue(form.get(key), f"{form_path.name}: missing {key}")
+            ids = [item["id"] for item in form["body"] if "id" in item]
+            self.assertEqual(len(ids), len(set(ids)), f"{form_path.name}: duplicate ids")
+            for item in form["body"]:
+                self.assertIn(item["type"], allowed, form_path.name)
+                attrs = item["attributes"]
+                if item["type"] == "markdown":
+                    self.assertTrue(attrs.get("value"))
+                    continue
+                self.assertRegex(item["id"], r"^[A-Za-z0-9_-]+$")
+                self.assertTrue(attrs.get("label"), f"{form_path.name}: {item['id']} label")
+                if item["type"] == "dropdown":
+                    self.assertTrue(attrs["options"])
+                    self.assertTrue(all(isinstance(o, str) for o in attrs["options"]))
+                if item["type"] == "checkboxes":
+                    self.assertTrue(all(o.get("label") for o in attrs["options"]))
+        config = yaml.safe_load((forms_dir / "config.yml").read_text())
+        self.assertIsInstance(config["blank_issues_enabled"], bool)
+        for md in ("README.md", "LEGGIMI.md"):
+            for name in re.findall(r"issues/new\?template=([\w.-]+)", (ROOT / md).read_text()):
+                self.assertTrue((forms_dir / name).exists(), f"{md}: missing form {name}")
+
     def test_no_secrets_tracked(self) -> None:
         if not shutil.which("git"):
             self.skipTest("git not available")

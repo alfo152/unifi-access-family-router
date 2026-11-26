@@ -1,0 +1,94 @@
+name: Test report
+description: Tell us how the router behaved with your real UniFi hardware.
+title: "[Test report] "
+labels: ["test report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Even a partial report (learn mode only) helps a lot.
+
+        **Remove API tokens, passwords and public IP addresses** from everything you paste.
+  - type: input
+    id: console
+    attributes:
+      label: UniFi console
+      placeholder: UCG-Max, UDM Pro, Cloud Key G2+...
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: UniFi Access and UniFi Protect versions
+      placeholder: Access 4.x.x / Protect 6.x.x
+    validations:
+      required: true
+  - type: dropdown
+    id: intercom
+    attributes:
+      label: Intercom model
+      options:
+        - G3 Intercom
+        - Intercom (first generation)
+        - Other (write it below)
+    validations:
+      required: true
+  - type: input
+    id: intercom_firmware
+    attributes:
+      label: Intercom firmware
+      placeholder: "1.x.x"
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you run the router?
+      options:
+        - Home Assistant add-on
+        - Docker stack
+        - Command line (pip)
+    validations:
+      required: true
+  - type: input
+    id: entries
+    attributes:
+      label: Number of directory entries on the intercom
+      placeholder: "3"
+  - type: dropdown
+    id: distinct_room_id
+    attributes:
+      label: In learn mode, does each directory entry show a different room_id?
+      description: This is the most important question.
+      options:
+        - Yes, every entry has its own room_id
+        - No, different entries show the same room_id
+        - Not tested yet
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What worked?
+      description: Tick only what you tested and saw working.
+      options:
+        - label: Only the called family received the ring
+        - label: Home Assistant Doorbell event
+        - label: Home Assistant Call active and Call result
+        - label: Apple Home doorbell notification (homebridge-unifi-protect)
+        - label: Live video in Apple Home
+        - label: Two-way audio in Apple Home
+        - label: Home Assistant Unlock button opened the door
+  - type: textarea
+    id: problems
+    attributes:
+      label: What did not work or looked wrong?
+  - type: textarea
+    id: logs
+    attributes:
+      label: Router log
+      description: Lines starting with `LEARN:` are the most useful.
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Network setup, homebridge-unifi-protect version, screenshots...

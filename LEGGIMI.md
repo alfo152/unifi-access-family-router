@@ -17,6 +17,12 @@ console nell'armadio delle scale.
 > 3 famiglie. Va confermata sul G3 Intercom vero con la
 > [lista di prova](docs/testing-checklist.md).
 
+**🧪 Cerco tester:** hai un G3 Intercom con UniFi Access e almeno due voci
+in rubrica? Installa, lascia `learn_mode: true`, chiama ogni voce una volta
+e [manda un resoconto](https://github.com/alfo152/unifi-access-family-router/issues/new?template=test_report.yml).
+Con le impostazioni di partenza il programma scrive solo nel log: non
+squilla nulla e non apre nessuna porta.
+
 ---
 
 ## Cosa serve
@@ -49,8 +55,12 @@ scrivere anche `family-router …`).
 **Con Home Assistant OS (consigliato):**
 
 1. Installa l'add-on **Mosquitto broker** e l'integrazione **MQTT**.
-2. Impostazioni → Componenti aggiuntivi → Negozio → ⋮ → Repository →
-   aggiungi l'indirizzo GitHub di questo progetto.
+2. Tocca questo pulsante (oppure Impostazioni → Componenti aggiuntivi →
+   Negozio → ⋮ → Repository → aggiungi l'indirizzo GitHub di questo
+   progetto):
+
+   [![Aggiungi il repository a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Falfo152%2Funifi-access-family-router)
+
 3. Installa **UniFi Access Family Router**, compila `access.host`,
    `access.token`, `access.tls_fingerprint`, `family.name`. Lascia
    `mqtt.host` vuoto (usa il broker di Home Assistant).

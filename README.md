@@ -23,7 +23,21 @@ except the intercom and the UniFi console in the stairwell.
 > [Known limitations](#known-limitations) and run the
 > [test checklist](docs/testing-checklist.md) on your installation.
 
+[![Open your Home Assistant instance and show the add add-on repository dialog with this repository pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Falfo152%2Funifi-access-family-router)
+
 Italian step-by-step guide: [LEGGIMI.md](LEGGIMI.md).
+
+## 🧪 Testers wanted
+
+Do you have a **G3 Intercom** (or Intercom) with **UniFi Access** and at
+least two directory entries? Install the router, leave `learn_mode: true`,
+call each entry once and
+[send a test report](https://github.com/alfo152/unifi-access-family-router/issues/new?template=test_report.yml).
+
+The single most useful answer: **does each directory entry show a different
+`room_id` in the log?** With the default settings (no family IDs yet,
+unlock off) the router only logs: nothing rings and no door is unlocked.
+Remove tokens and passwords from anything you paste.
 
 ---
 
@@ -90,8 +104,9 @@ Italian step-by-step guide: [LEGGIMI.md](LEGGIMI.md).
 1. **UniFi setup** (directory, one API token and one local user per family,
    network isolation): [docs/unifi-setup.md](docs/unifi-setup.md)
 2. **Install the router for each family**
-   - Home Assistant OS: add this repository in *Settings → Add-ons → Add-on
-     Store → ⋮ → Repositories*, install **UniFi Access Family Router**;
+   - Home Assistant OS: add this repository with the **Add repository**
+     button above (or in *Settings → Add-ons → Add-on Store → ⋮ →
+     Repositories*), install **UniFi Access Family Router**;
    - or Docker: copy [`stack/`](stack/) to the family's computer and follow
      the comments in [`stack/docker-compose.yml`](stack/docker-compose.yml).
 3. **Find the TLS fingerprint** of the console and put it in
