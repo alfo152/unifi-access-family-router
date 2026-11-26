@@ -1,0 +1,33 @@
+# Router configuration for the per-family Docker stack (stack/docker-compose.yml).
+# Copy to config.yaml and fill in the values. See ../../config.example.yaml for
+# every option.
+
+access:
+  host: 192.168.50.1
+  token: "PASTE-THE-FAMILY-TOKEN-HERE"
+  tls_fingerprint: ""
+
+family:
+  name: "Famiglia Rossi"
+  id: rossi
+  match:
+    room_ids:
+      - "WR-PASTE-FROM-LEARN-MODE"
+
+mqtt:
+  host: mosquitto          # service name inside the stack
+  port: 1883
+  username: router
+  password: "change-me"
+
+homebridge:
+  enabled: true
+  topic_prefix: unifi/protect
+  camera_mac: "F4:E2:C6:12:34:56"
+
+unlock:
+  enabled: false
+  door_id: ""
+
+learn_mode: false
+log_level: info

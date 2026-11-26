@@ -1,0 +1,10 @@
+{
+  "event": "access.doorbell.incoming",
+  "event_object_id": "641cee06-89b5-4fef-9ce5-f9a2ae33ffd8",
+  "data": {
+    "location": {"id": "d2b87427-7efa-43c1-aa52-b00d40d99ecf", "location_type": "door", "name": "Door 3855"},
+    "device": {"name": "UA G2 Pro bb7a", "id": "0418d6a2bb7a", "device_type": "UA-G2-PRO"},
+    "actor": null,
+    "object": {"request_id": "Ed8XSsi4fLm6St7JOLLa26UcmzAZlGzn"}
+  }
+}

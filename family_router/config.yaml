@@ -1,0 +1,84 @@
+name: UniFi Access Family Router
+version: "0.1.0"
+slug: access_family_router
+description: >-
+  Rings only the family whose directory entry was called on a UniFi Access
+  intercom (G3 Intercom): Apple Home via Homebridge and Home Assistant.
+url: "https://github.com/alfo152/unifi-access-family-router"
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+services:
+  - "mqtt:want"
+options:
+  access:
+    host: ""
+    port: 12445
+    token: ""
+    tls_fingerprint: ""
+  family:
+    name: ""
+    id: ""
+    room_ids: []
+    door_guard_ids: []
+    device_ids: []
+    ring_all: false
+  mqtt:
+    host: ""
+    port: 1883
+    username: ""
+    password: ""
+    base_topic: access_family_router
+    discovery: true
+    discovery_prefix: homeassistant
+  homebridge:
+    enabled: false
+    topic_prefix: unifi/protect
+    camera_mac: ""
+  unlock:
+    enabled: false
+    door_id: ""
+    actor_name: ""
+    cooldown_seconds: 3
+  learn_mode: true
+  call_timeout_seconds: 60
+  log_level: info
+schema:
+  access:
+    host: str
+    port: port
+    token: password
+    tls_fingerprint: str?
+  family:
+    name: str
+    id: str?
+    room_ids:
+      - str
+    door_guard_ids:
+      - str
+    device_ids:
+      - str
+    ring_all: bool
+  mqtt:
+    host: str?
+    port: port
+    username: str?
+    password: password?
+    base_topic: str
+    discovery: bool
+    discovery_prefix: str
+  homebridge:
+    enabled: bool
+    topic_prefix: str
+    camera_mac: str?
+  unlock:
+    enabled: bool
+    door_id: str?
+    actor_name: str?
+    cooldown_seconds: float(0,60)
+  learn_mode: bool
+  call_timeout_seconds: int(5,600)
+  log_level: list(debug|info|warning|error)

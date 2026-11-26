@@ -1,0 +1,13 @@
+{
+  "platform": "UniFi Protect",
+  "name": "UniFi Protect",
+  "controllers": [
+    {
+      "address": "192.168.50.1",
+      "username": "homebridge-rossi",
+      "password": "PASSWORD-OF-THE-LOCAL-PROTECT-USER",
+      "mqttUrl": "mqtt://homebridge:HOMEBRIDGE_PASSWORD@127.0.0.1:1883",
+      "mqttTopic": "unifi/protect"
+    }
+  ]
+}

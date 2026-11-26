@@ -1,0 +1,5 @@
+# Home Assistant add-on repository.
+# Settings > Add-ons > Add-on Store > ... > Repositories > add the GitHub URL of this repository.
+name: UniFi Access Family Router
+url: "https://github.com/alfo152/unifi-access-family-router"
+maintainer: "alfo152"

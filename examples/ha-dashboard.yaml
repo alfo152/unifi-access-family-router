@@ -1,0 +1,25 @@
+# Lovelace card: live view while this family is being called, Unlock button.
+# Replace the entity IDs with yours (Settings > Devices & services > MQTT).
+type: vertical-stack
+cards:
+  - type: conditional
+    conditions:
+      - condition: state
+        entity: binary_sensor.intercom_famiglia_rossi_call_active
+        state: "on"
+    card:
+      type: picture-entity
+      entity: camera.g3_intercom_high
+      camera_view: live
+      name: Suonano al portone
+  - type: button
+    entity: button.intercom_famiglia_rossi_unlock
+    name: Apri portone
+    icon: mdi:door-open
+    tap_action:
+      action: perform-action
+      perform_action: button.press
+      target:
+        entity_id: button.intercom_famiglia_rossi_unlock
+      confirmation:
+        text: Aprire il portone?

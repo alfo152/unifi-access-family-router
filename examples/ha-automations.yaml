@@ -1,0 +1,39 @@
+# Phone notification when THIS family is called, with an "Apri" (open) action.
+# Requires the Home Assistant Companion app. Replace the entity IDs and the
+# notify service with yours.
+- alias: Citofono - chiamata per la famiglia
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: event.intercom_famiglia_rossi_doorbell
+  conditions:
+    # ignore restarts (unavailable -> restored state)
+    - condition: template
+      value_template: >-
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unavailable', 'unknown']
+           and trigger.to_state.attributes.event_type == 'ring' }}
+  actions:
+    - action: notify.mobile_app_iphone
+      data:
+        title: Citofono
+        message: Suonano al portone
+        data:
+          entity_id: camera.g3_intercom_high
+          push:
+            interruption-level: time-sensitive
+          actions:
+            - action: APRI_PORTONE
+              title: Apri
+              destructive: true
+              authenticationRequired: true
+    - wait_for_trigger:
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: APRI_PORTONE
+      timeout: "00:01:00"
+      continue_on_timeout: false
+    - action: button.press
+      target:
+        entity_id: button.intercom_famiglia_rossi_unlock

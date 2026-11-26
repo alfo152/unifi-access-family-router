@@ -1,0 +1,41 @@
+configuration:
+  access:
+    name: UniFi Access console
+    description: >-
+      host = IP of the console running UniFi Access, port = 12445,
+      token = this family's API token (view:device; plus view:space and
+      edit:space for unlock), tls_fingerprint = SHA-256 pin of the console
+      certificate (recommended).
+  family:
+    name: Family
+    description: >-
+      name/id of this family and the rules that recognise its calls:
+      room_ids (from learn mode), optional door_guard_ids, device_ids,
+      ring_all (single-family buildings only).
+  mqtt:
+    name: MQTT broker
+    description: >-
+      Leave host empty to use the Home Assistant MQTT broker (Mosquitto
+      add-on). discovery creates the entities in Home Assistant.
+  homebridge:
+    name: Homebridge (Apple Home)
+    description: >-
+      enabled = ring Apple Home through homebridge-unifi-protect;
+      camera_mac = MAC of the G3 Intercom in UniFi Protect;
+      topic_prefix = "mqttTopic" of the plugin.
+  unlock:
+    name: Unlock
+    description: >-
+      Adds an Unlock button in Home Assistant. door_id: see the add-on
+      documentation (--list-doors).
+  learn_mode:
+    name: Learn mode
+    description: >-
+      Logs the room_id of every call. Call each directory entry once, copy
+      this family's room_id into family.room_ids, then turn learn mode off.
+  call_timeout_seconds:
+    name: Call timeout
+    description: Seconds after which a call without end event is closed.
+  log_level:
+    name: Log level
+    description: debug, info, warning or error.

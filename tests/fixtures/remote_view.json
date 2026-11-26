@@ -1,0 +1,35 @@
+{
+  "event": "access.remote_view",
+  "receiver_id": "",
+  "event_object_id": "535b6125-860c-489a-b0a1-0ba01906afa9",
+  "save_to_history": false,
+  "data": {
+    "channel": "4513899f-0370-4116-9731-63a6b0feea23",
+    "token": "6dff120f-2688-497d-856f-0ca08b383d1d",
+    "device_id": "e4388386be1d",
+    "device_type": "UA-G2-PRO",
+    "device_name": "UA-G2-PRO-BE1D",
+    "door_name": "Door 236b",
+    "controller_id": "68d79a1f494f",
+    "floor_name": "1F",
+    "request_id": "J0FeDJc8ZNzHjxr1SUIP6GLQDjAkdZFp",
+    "clear_request_id": "",
+    "in_or_out": "in",
+    "create_time": 1694771479,
+    "reason_code": 0,
+    "door_guard_ids": [
+      "daa10301-7744-4623-a90e-372718af1d41",
+      "9d526114-70ce-49ec-8655-81767ffb3eb4",
+      "c003514f-60bb-4aa3-9150-cd361b1458a0",
+      "0d6273e4-9b54-4b91-b7f8-40d0d41780c1",
+      "f395f473-e6ea-4232-a45f-9ec20c813e96",
+      "c52f9920-be17-4357-936c-47d94dad753a",
+      "8ed10bf7-8f5e-4b68-98da-76d2f315d515",
+      "e4de9c92-e385-4b31-8cfc-8e9d192c0e10",
+      "2159ac55-a1d9-42f3-ba2b-6c87cf5ea383"
+    ],
+    "connected_uah_id": "e4388384236b",
+    "room_id": "WR-e4388386be1d-3YSCjtuV5VuyfLT46mUXnnY2q5KQfKxX",
+    "host_device_mac": "68D79A1F494B"
+  }
+}

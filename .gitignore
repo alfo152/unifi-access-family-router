@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+# real configuration files contain tokens and passwords
+config.yaml
+!family_router/config.yaml
+stack/router/config.yaml
+stack/mosquitto/passwd
+stack/homebridge/*
+!stack/homebridge/unifi-protect-platform.example.json

@@ -1,0 +1,10 @@
+{
+  "event": "access.remote_view.change",
+  "receiver_id": "",
+  "event_object_id": "450a6c0f-28f7-47ca-99c3-5a35475fece4",
+  "save_to_history": false,
+  "data": {
+    "reason_code": 108,
+    "remote_call_request_id": "J0FeDJc8ZNzHjxr1SUIP6GLQDjAkdZFp"
+  }
+}

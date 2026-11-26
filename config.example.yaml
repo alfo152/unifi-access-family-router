@@ -1,0 +1,53 @@
+# UniFi Access Family Router - example configuration (standalone / Docker).
+# One file per family. Every family runs its own copy of the router, with its
+# own token, its own MQTT broker, its own Homebridge and its own Home Assistant.
+
+access:
+  # IP of the UniFi console running UniFi Access (e.g. the UCG-Max).
+  host: 192.168.50.1
+  port: 12445
+  # Access > Settings > General > Advanced > API Token.
+  # Permissions: view:device (required) + view:space and edit:space (only for unlock).
+  token: "PASTE-THE-FAMILY-TOKEN-HERE"
+  # SHA-256 of the console certificate (python -m family_router --fingerprint 192.168.50.1).
+  # Strongly recommended: the connection is refused if the certificate changes.
+  tls_fingerprint: ""
+
+family:
+  name: "Famiglia Rossi"
+  id: rossi
+  match:
+    # room_id of this family's directory entry on the intercom.
+    # Run once with learn_mode: true, call the entry from the intercom, copy the value.
+    room_ids:
+      - "WR-e4388386be1d-3YSCjtuV5VuyfLT46mUXnnY2q5KQfKxX"
+    # Optional extra rules:
+    door_guard_ids: []   # ring if one of these receiver IDs is in the call
+    device_ids: []       # only react to these intercom device IDs
+    ring_all: false      # true only for a single-family building
+
+mqtt:
+  host: 192.168.60.10    # the family's own broker
+  port: 1883
+  username: router
+  password: "change-me"
+  base_topic: access_family_router
+  discovery: true        # create the entities in Home Assistant
+  discovery_prefix: homeassistant
+
+homebridge:
+  # Ring the family's Apple Home through homebridge-unifi-protect (MQTT doorbell/set).
+  enabled: true
+  topic_prefix: unifi/protect      # = "mqttTopic" in homebridge-unifi-protect
+  camera_mac: "F4:E2:C6:12:34:56"  # MAC of the G3 Intercom as shown in UniFi Protect
+
+unlock:
+  # Adds an "Unlock" button in Home Assistant (token needs view:space + edit:space).
+  enabled: false
+  door_id: ""            # python -m family_router --config config.yaml --list-doors
+  actor_name: "Famiglia Rossi (Home Assistant)"
+  cooldown_seconds: 3
+
+learn_mode: false
+call_timeout_seconds: 60
+log_level: info
