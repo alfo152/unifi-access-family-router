@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import signal
 import sys
 import unittest
@@ -89,6 +90,40 @@ class PureFunctionTests(unittest.TestCase):
         rec.handle(ring_message(ROOM_A, "r1"))
         self.assertIn("Only one call seen", rec.summary())
 
+    def test_italian_summary(self) -> None:
+        rec = watch_calls.Recorder(out=io.StringIO(), lang="it")
+        self.assertIn("Nessuna chiamata vista", rec.summary())
+        rec.handle(ring_message(ROOM_A, "r1"))
+        self.assertIn("Vista una sola chiamata", rec.summary())
+        rec.handle(ring_message(ROOM_B, "r2"))
+        summary = rec.summary()
+        self.assertIn("=== Riepilogo ===", summary)
+        self.assertIn("Chiamate viste: 2, room_id diversi: 2", summary)
+        self.assertIn("Risultato: OK", summary)
+        self.assertIn("non contiene token", summary)
+        # the CALL lines are data: the same in every language
+        self.assertIn(f"CALL  room_id={ROOM_A}", rec.out.getvalue())
+        rec = watch_calls.Recorder(out=io.StringIO(), lang="it")
+        rec.handle(ring_message(ROOM_A, "r1"))
+        rec.handle(ring_message(ROOM_A, "r2"))
+        self.assertIn("NON funziona", rec.summary())
+
+    def test_messages_cover_both_languages(self) -> None:
+        en, it = watch_calls.MESSAGES["en"], watch_calls.MESSAGES["it"]
+        self.assertEqual(set(en), set(it))
+        for key in en:
+            self.assertEqual(
+                sorted(re.findall(r"{(\w+)", en[key])), sorted(re.findall(r"{(\w+)", it[key])), key
+            )
+
+    def test_detect_language(self) -> None:
+        detect = watch_calls.detect_language
+        self.assertEqual(detect({"LANG": "it_IT.UTF-8"}), "it")
+        self.assertEqual(detect({"LANG": "en_US.UTF-8"}), "en")
+        self.assertEqual(detect({"LC_ALL": "C", "LANG": "it_IT.UTF-8"}), "en")
+        self.assertEqual(detect({"LC_ALL": "it_IT.UTF-8", "LANG": "en_US"}), "it")
+        self.assertEqual(detect({}), "en")
+
     def test_ignores_noise(self) -> None:
         rec = self.recorder()
         for text in ("Hello", "[]", "null", '{"event": "access.device.update", "data": {}}',
@@ -119,7 +154,7 @@ class LiveTests(unittest.IsolatedAsyncioTestCase):
         self.cert.cleanup()
 
     async def spawn(self, *args: str, token: str = TOKEN) -> asyncio.subprocess.Process:
-        env = {**os.environ, "UNIFI_ACCESS_TOKEN": token}
+        env = {**os.environ, "UNIFI_ACCESS_TOKEN": token, "LC_ALL": "C.UTF-8"}
         return await asyncio.create_subprocess_exec(
             sys.executable, "-I", str(SCRIPT), f"127.0.0.1:{self.server.port}", *args,
             stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE,
@@ -164,6 +199,28 @@ class LiveTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("Only one call seen", out)
 
+    async def test_italian_session(self) -> None:
+        proc = await self.spawn("--duration", "3", "--lang", "it")
+        await self.server.wait_event(lambda e: e["event"] == "connected", timeout=10)
+        await self.server.broadcast(ring_message(ROOM_A, "r1"))
+        await self.server.broadcast(ring_message(ROOM_B, "r2"))
+        code, out, err = await self.finish(proc)
+        self.assertEqual(code, 0, err)
+        self.assertIn("Certificato SHA-256: ", out)
+        self.assertIn("Collegato.", out)
+        self.assertIn("Si ferma da solo tra 3 s.", out)
+        self.assertIn("Chiamate viste: 2, room_id diversi: 2", out)
+        # an Italian computer gets Italian without --lang
+        env = {**os.environ, "UNIFI_ACCESS_TOKEN": "wrong", "LC_ALL": "it_IT.UTF-8"}
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, "-I", str(SCRIPT), f"127.0.0.1:{self.server.port}",
+            "--duration", "1", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        code, _, err = await self.finish(proc)
+        self.assertEqual(code, 2)
+        self.assertIn("il token è sbagliato", err)
+
     async def test_wrong_token(self) -> None:
         proc = await self.spawn("--duration", "2", token="wrong")
         code, out, err = await self.finish(proc)
@@ -196,7 +253,7 @@ class LiveTests(unittest.IsolatedAsyncioTestCase):
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "-I", str(SCRIPT), f"127.0.0.1:{port}", "--duration", "1",
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            env={**os.environ, "UNIFI_ACCESS_TOKEN": TOKEN},
+            env={**os.environ, "UNIFI_ACCESS_TOKEN": TOKEN, "LC_ALL": "C.UTF-8"},
         )
         code, _, err = await self.finish(proc)
         self.assertEqual(code, 1)

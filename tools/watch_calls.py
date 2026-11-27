@@ -12,11 +12,17 @@ cannot unlock doors, and the script sends nothing to the console except the
 WebSocket keep-alive.
 
 Usage:
-    python3 watch_calls.py CONSOLE_IP[:PORT] [--duration SECONDS] [--raw]
+    python3 watch_calls.py CONSOLE_IP[:PORT] [--duration SECONDS] [--raw] [--lang en|it]
 
 The API token is read from the UNIFI_ACCESS_TOKEN environment variable or
 asked for (hidden input). Call each directory entry once from the intercom,
-then press Ctrl+C to see the summary.
+then press Ctrl+C to see the summary. Messages are in Italian when the
+computer is set to Italian (or with --lang it), otherwise in English.
+
+IT: verifica autonoma che ascolta soltanto. Mostra il room_id di ogni
+chiamata del citofono e, quando premi Ctrl+C, dice se voci diverse della
+rubrica danno room_id diversi. Messaggi in italiano se il computer è in
+italiano (oppure con --lang it).
 """
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ import getpass
 import hashlib
 import ipaddress
 import json
+import locale
 import os
 import socket
 import ssl
@@ -35,7 +42,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-VERSION = "1.0"
+VERSION = "1.1"
 NOTIFY_PATH = "/api/v1/developer/devices/notifications"
 DEFAULT_PORT = 12445
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -50,6 +57,87 @@ REASONS = {
     400: "answered elsewhere",
 }
 REDACTED_KEYS = {"token", "channel"}
+
+# Messages shown to the person running the check (English / Italian).
+# The CALL/END lines are data and stay the same in every language.
+MESSAGES: Dict[str, Dict[str, str]] = {
+    "en": {
+        "prompt": "UniFi Access API token (hidden): ",
+        "no_token": "No token given.",
+        "connecting": "Connecting to {target} ...",
+        "refused": ("Refused by the console ({err}): the token is wrong or lacks the "
+                    "view:device permission."),
+        "handshake": "WebSocket handshake failed: {err}",
+        "unreachable": "Cannot connect to {target}: {err}",
+        "certificate": "Certificate SHA-256: {fp}",
+        "mismatch": "The certificate does not match --fingerprint: stopping.",
+        "connected": "Connected. Call each directory entry once from the intercom.",
+        "ctrl_c": "Press Ctrl+C when done.",
+        "duration": "Stopping by itself in {seconds:g} s.",
+        "closed": "The console closed the connection: {err}",
+        "error": "Connection error: {err}",
+        "summary": "=== Summary ===",
+        "counts": "Calls seen: {calls}, different room_id: {rooms}",
+        "room": "  {room}: {n} call(s) (device {device}, door {door}, receivers {guards})",
+        "none": ("No calls seen. Check that the token has the view:device permission "
+                 "and call a directory entry from the intercom."),
+        "one": "Only one call seen: call at least two different directory entries.",
+        "ok": ("OK: different calls produced different room_ids. If each one was a "
+               "different directory entry, per-family routing by room_id works here."),
+        "same": ("All calls used the same room_id. If you called different directory "
+                 "entries, routing by room_id does NOT work on this setup: please report it."),
+        "result": "Result: {verdict}",
+        "share": "You can share this summary: it contains no token or password.",
+    },
+    "it": {
+        "prompt": "Token API di UniFi Access (non si vede mentre lo scrivi): ",
+        "no_token": "Nessun token inserito.",
+        "connecting": "Connessione a {target} ...",
+        "refused": ("Rifiutato dalla console ({err}): il token è sbagliato o non ha il "
+                    "permesso view:device."),
+        "handshake": "Handshake WebSocket non riuscito: {err}",
+        "unreachable": "Impossibile collegarsi a {target}: {err}",
+        "certificate": "Certificato SHA-256: {fp}",
+        "mismatch": "Il certificato non corrisponde a --fingerprint: mi fermo.",
+        "connected": "Collegato. Dal citofono chiama una volta ogni voce della rubrica.",
+        "ctrl_c": "Quando hai finito premi Ctrl+C.",
+        "duration": "Si ferma da solo tra {seconds:g} s.",
+        "closed": "La console ha chiuso la connessione: {err}",
+        "error": "Errore di connessione: {err}",
+        "summary": "=== Riepilogo ===",
+        "counts": "Chiamate viste: {calls}, room_id diversi: {rooms}",
+        "room": ("  {room}: {n} chiamata/e (dispositivo {device}, porta {door}, "
+                 "destinatari {guards})"),
+        "none": ("Nessuna chiamata vista. Controlla che il token abbia il permesso "
+                 "view:device e chiama una voce della rubrica dal citofono."),
+        "one": "Vista una sola chiamata: chiama almeno due voci diverse della rubrica.",
+        "ok": ("OK: chiamate diverse hanno dato room_id diversi. Se ognuna era una voce "
+               "diversa della rubrica, qui lo smistamento per famiglia con il room_id "
+               "funziona."),
+        "same": ("Tutte le chiamate hanno lo stesso room_id. Se hai chiamato voci diverse "
+                 "della rubrica, qui lo smistamento con il room_id NON funziona: "
+                 "segnalalo, per favore."),
+        "result": "Risultato: {verdict}",
+        "share": "Puoi condividere questo riepilogo: non contiene token né password.",
+    },
+}
+
+
+def detect_language(environ: Optional[Dict[str, str]] = None) -> str:
+    """'it' when the computer is set to Italian, otherwise 'en'."""
+
+    env = os.environ if environ is None else environ
+    for key in ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"):
+        value = env.get(key, "")
+        if value:
+            return "it" if value.lower().startswith("it") else "en"
+    if environ is not None:
+        return "en"
+    try:  # Windows and macOS apps often set no variable
+        name = locale.getlocale()[0] or ""
+    except (ValueError, TypeError):
+        name = ""
+    return "it" if name.lower().startswith("it") else "en"
 
 OP_CONT, OP_TEXT, OP_BINARY, OP_CLOSE, OP_PING, OP_PONG = 0x0, 0x1, 0x2, 0x8, 0x9, 0xA
 
@@ -297,9 +385,10 @@ def connect(host: str, port: int, token: str, timeout: float = 10.0) -> Tuple[Co
 class Recorder:
     """Keeps the calls seen and prints them as they arrive."""
 
-    def __init__(self, raw: bool = False, out: Any = None) -> None:
+    def __init__(self, raw: bool = False, out: Any = None, lang: str = "en") -> None:
         self.raw = raw
         self.out = out or sys.stdout
+        self.msg = MESSAGES.get(lang, MESSAGES["en"])
         self.calls: List[Dict[str, Any]] = []
 
     def _print(self, text: str) -> None:
@@ -344,31 +433,28 @@ class Recorder:
         rooms: Dict[str, List[Dict[str, Any]]] = {}
         for call in self.calls:
             rooms.setdefault(call["room_id"], []).append(call)
-        lines = ["", "=== Summary ===",
-                 f"Calls seen: {len(self.calls)}, different room_id: {len(rooms)}"]
+        msg = self.msg
+        lines = ["", msg["summary"], msg["counts"].format(calls=len(self.calls), rooms=len(rooms))]
         for room_id, calls in rooms.items():
             first = calls[0]
-            lines.append(f"  {room_id}: {len(calls)} call(s) (device {first['device']}, "
-                         f"door {first['door']}, receivers {first['guards']})")
+            lines.append(msg["room"].format(room=room_id, n=len(calls), device=first["device"],
+                                            door=first["door"], guards=first["guards"]))
         if not self.calls:
-            verdict = ("No calls seen. Check that the token has the view:device permission "
-                       "and call a directory entry from the intercom.")
+            verdict = msg["none"]
         elif len(self.calls) == 1:
-            verdict = "Only one call seen: call at least two different directory entries."
+            verdict = msg["one"]
         elif len(rooms) >= 2:
-            verdict = ("OK: different calls produced different room_ids. If each one was a "
-                       "different directory entry, per-family routing by room_id works here.")
+            verdict = msg["ok"]
         else:
-            verdict = ("All calls used the same room_id. If you called different directory "
-                       "entries, routing by room_id does NOT work on this setup: please report it.")
-        lines += [f"Result: {verdict}",
-                  "You can share this summary: it contains no token or password."]
+            verdict = msg["same"]
+        lines += [msg["result"].format(verdict=verdict), msg["share"]]
         return "\n".join(lines)
 
 
 def run(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Show the room_id of each UniFi Access intercom call (read-only).")
+        description="Show the room_id of each UniFi Access intercom call (read-only). / "
+                    "Mostra il room_id di ogni chiamata del citofono UniFi Access (solo lettura).")
     parser.add_argument("console", help="IP or name of the UniFi console, optionally :PORT "
                         f"(default {DEFAULT_PORT})")
     parser.add_argument("--duration", type=float, default=0,
@@ -377,8 +463,12 @@ def run(argv: Optional[List[str]] = None) -> int:
                         "must have (printed at the first run)")
     parser.add_argument("--raw", action="store_true",
                         help="also print every notification (call tokens redacted)")
+    parser.add_argument("--lang", choices=sorted(MESSAGES),
+                        help="language of the messages / lingua dei messaggi "
+                             "(default: from the computer / dal computer)")
     parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     args = parser.parse_args(argv)
+    msg = MESSAGES[args.lang or detect_language()]
 
     try:
         host, port = parse_target(args.console)
@@ -391,38 +481,38 @@ def run(argv: Optional[List[str]] = None) -> int:
     token = os.environ.get("UNIFI_ACCESS_TOKEN", "").strip()
     if not token:
         try:
-            token = getpass.getpass("UniFi Access API token (hidden): ").strip()
+            token = getpass.getpass(msg["prompt"]).strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nNo token given.", file=sys.stderr)
+            print("\n" + msg["no_token"], file=sys.stderr)
             return 2
     if not token:
-        print("No token given.", file=sys.stderr)
+        print(msg["no_token"], file=sys.stderr)
         return 2
 
-    print(f"Connecting to {host}:{port} ...", flush=True)
+    target = f"{host}:{port}"
+    print(msg["connecting"].format(target=target), flush=True)
     try:
         conn, fingerprint = connect(host, port, token)
     except HandshakeError as err:
         if err.status in (401, 403):
-            print(f"Refused by the console ({err}): the token is wrong or lacks the "
-                  "view:device permission.", file=sys.stderr)
+            print(msg["refused"].format(err=err), file=sys.stderr)
             return 2
-        print(f"WebSocket handshake failed: {err}", file=sys.stderr)
+        print(msg["handshake"].format(err=err), file=sys.stderr)
         return 1
     except (OSError, ssl.SSLError) as err:
-        print(f"Cannot connect to {host}:{port}: {err}", file=sys.stderr)
+        print(msg["unreachable"].format(target=target, err=err), file=sys.stderr)
         return 1
 
-    print(f"Certificate SHA-256: {format_fingerprint(fingerprint)}", flush=True)
+    print(msg["certificate"].format(fp=format_fingerprint(fingerprint)), flush=True)
     if expected and fingerprint != expected:
-        print("The certificate does not match --fingerprint: stopping.", file=sys.stderr)
+        print(msg["mismatch"], file=sys.stderr)
         conn.close()
         return 1
-    print("Connected. Call each directory entry once from the intercom.", flush=True)
-    print("Press Ctrl+C when done." if not args.duration
-          else f"Stopping by itself in {args.duration:g} s.", flush=True)
+    print(msg["connected"], flush=True)
+    print(msg["duration"].format(seconds=args.duration) if args.duration else msg["ctrl_c"],
+          flush=True)
 
-    recorder = Recorder(raw=args.raw)
+    recorder = Recorder(raw=args.raw, lang=args.lang or detect_language())
     conn.sock.settimeout(1.0)
     deadline = time.monotonic() + args.duration if args.duration else None
     last_ping = time.monotonic()
@@ -441,10 +531,10 @@ def run(argv: Optional[List[str]] = None) -> int:
     except KeyboardInterrupt:
         pass
     except Closed as err:
-        print(f"The console closed the connection: {err}", file=sys.stderr)
+        print(msg["closed"].format(err=err), file=sys.stderr)
         status = 1
     except (OSError, ssl.SSLError) as err:
-        print(f"Connection error: {err}", file=sys.stderr)
+        print(msg["error"].format(err=err), file=sys.stderr)
         status = 1
     finally:
         conn.close()

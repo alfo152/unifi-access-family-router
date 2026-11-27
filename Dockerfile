@@ -1,6 +1,7 @@
-# Standalone image of the router (Docker / docker compose).
-# The router itself only needs the Python standard library; PyYAML is added
-# to read YAML configuration files.
+# EN: standalone image of the router (Docker / docker compose). The router
+#     only needs the Python standard library; PyYAML reads YAML config files.
+# IT: immagine autonoma del router (Docker / docker compose). Il router usa
+#     solo la libreria standard di Python; PyYAML legge i file YAML.
 FROM python:3.12-alpine
 
 RUN pip install --no-cache-dir "PyYAML>=6.0,<7" \

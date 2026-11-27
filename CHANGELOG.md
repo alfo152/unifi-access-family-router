@@ -27,9 +27,11 @@
 - `tools/watch_calls.py`: standalone, read-only check (Python 3.8+, standard
   library only) that prints the `room_id` of every intercom call and says
   whether different directory entries produce different `room_id`s.
-- Documentation in **English and Italian** (`docs/` and `docs/it/`, add-on
-  documentation, issue forms). Network docs list TCP 7446 for HBUP 8.4+
-  direct livestreams.
+- The whole project in **English and Italian**: README/LEGGIMI (full
+  mirror), every guide (`docs/` and `docs/it/`), add-on documentation and
+  log hints, issue forms, examples, configuration files, changelog.
+  `tools/watch_calls.py` speaks Italian on an Italian computer or with
+  `--lang it`. Network docs list TCP 7446 for HBUP 8.4+ direct livestreams.
 
 ### Italiano
 
@@ -59,21 +61,32 @@
 - `tools/watch_calls.py`: verifica autonoma che legge soltanto (Python 3.8+,
   solo libreria standard): scrive il `room_id` di ogni chiamata e dice se
   voci diverse della rubrica danno `room_id` diversi.
-- Documentazione in **inglese e italiano** (`docs/` e `docs/it/`,
-  documentazione dell'add-on, moduli delle issue). La guida di rete indica
-  la porta TCP 7446 per il video diretto di HBUP 8.4+.
+- Tutto il progetto in **inglese e italiano**: README/LEGGIMI (traduzione
+  completa), ogni guida (`docs/` e `docs/it/`), documentazione e messaggi
+  dell'add-on, moduli delle issue, esempi, file di configurazione,
+  changelog. `tools/watch_calls.py` parla italiano su un computer in
+  italiano o con `--lang it`. La guida di rete indica la porta TCP 7446 per
+  il video diretto di HBUP 8.4+.
 
 ## 0.1.1 - 2026-11-26
 
-- Add-on: without the Mosquitto broker the log no longer shows the
+- 🇬🇧 Add-on: without the Mosquitto broker the log no longer shows the
   Supervisor's "Service not enabled" ERROR; a clear warning explains how to
   add a broker instead.
-- README/LEGGIMI: one-click "Add repository" button and tester call.
-- GitHub issue forms for test reports and bugs.
+- 🇬🇧 README/LEGGIMI: one-click "Add repository" button and tester call.
+- 🇬🇧 GitHub issue forms for test reports and bugs.
+- 🇮🇹 Add-on: senza il broker Mosquitto il log non mostra più l'ERRORE
+  "Service not enabled" del Supervisor; un avviso chiaro spiega come
+  aggiungere un broker.
+- 🇮🇹 README/LEGGIMI: pulsante "Aggiungi repository" con un tocco e
+  richiesta di tester.
+- 🇮🇹 Moduli GitHub per resoconti di prova e segnalazioni di errori.
 
 ## 0.1.0 - 2026-11-26
 
-First release.
+First release. / Prima versione.
+
+### English
 
 - Per-family routing of UniFi Access intercom calls using the `room_id` of
   the called directory entry (official WebSocket API, `access.remote_view`).
@@ -92,3 +105,26 @@ First release.
 - Home Assistant add-on and standalone Docker image; per-family Docker stack
   (Mosquitto + router + Homebridge).
 - No third-party runtime dependency (Python 3.11+ standard library).
+
+### Italiano
+
+- Smistamento per famiglia delle chiamate del citofono UniFi Access con il
+  `room_id` della voce chiamata in rubrica (API WebSocket ufficiale,
+  `access.remote_view`).
+- Regole facoltative su `door_guard_ids` e sugli ID dei citofoni
+  `device_ids`; `ring_all` per i palazzi con una sola famiglia; modalità
+  apprendimento per scoprire gli ID.
+- Apple Casa: fa suonare il campanello di homebridge-unifi-protect via MQTT
+  (`<prefix>/<MAC>/doorbell/set`).
+- Home Assistant: MQTT discovery degli eventi Doorbell e Call result, del
+  sensore Call active, del pulsante Unlock e del sensore di apprendimento.
+- Apertura con l'API ufficiale (`PUT /doors/:id/unlock`) con il nome della
+  famiglia nel registro di Access; comandi retained ignorati e cancellati;
+  attesa tra due pressioni.
+- Certificato della console fissato, ricollegamento automatico del
+  WebSocket di Access (con heartbeat) e di MQTT; uno squillo vecchio non
+  arriva mai in ritardo.
+- Add-on di Home Assistant e immagine Docker autonoma; pacchetto Docker per
+  famiglia (Mosquitto + router + Homebridge).
+- Nessuna dipendenza esterna per funzionare (libreria standard di Python
+  3.11+).

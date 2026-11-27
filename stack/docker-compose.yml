@@ -1,8 +1,12 @@
-# Per-family stack: MQTT broker + router + Homebridge.
-# Run ONE copy of this folder per family, on that family's own computer
-# (mini PC, NAS, Raspberry Pi...). Nothing is shared between families.
+# EN: per-family stack: MQTT broker + router + Homebridge.
+#     Run ONE copy of this folder per family, on that family's own computer
+#     (mini PC, NAS, Raspberry Pi...). Nothing is shared between families.
+# IT: pacchetto per una famiglia: broker MQTT + router + Homebridge.
+#     Usa UNA copia di questa cartella per famiglia, sul computer di quella
+#     famiglia (mini PC, NAS, Raspberry Pi...). Niente è in comune tra famiglie.
 #
-#   cp router/config.yaml.example router/config.yaml   # then edit it
+# EN: commands (replace the passwords) / IT: comandi (sostituisci le password):
+#   cp router/config.yaml.example router/config.yaml   # then edit it / poi modificalo
 #   docker compose run --rm mosquitto mosquitto_passwd -c -b /mosquitto/config/passwd router  ROUTER_PASSWORD
 #   docker compose run --rm mosquitto mosquitto_passwd    -b /mosquitto/config/passwd homebridge HOMEBRIDGE_PASSWORD
 #   docker compose run --rm mosquitto mosquitto_passwd    -b /mosquitto/config/passwd homeassistant HA_PASSWORD
@@ -15,8 +19,10 @@ services:
     image: eclipse-mosquitto:2
     restart: unless-stopped
     ports:
-      # Home Assistant and Homebridge connect here. Bind to the family LAN IP
-      # (e.g. "192.168.60.10:1883:1883") instead of all interfaces if you can.
+      # EN: Home Assistant and Homebridge connect here. Bind to the family LAN
+      #     IP (e.g. "192.168.60.10:1883:1883") instead of all interfaces if you can.
+      # IT: qui si collegano Home Assistant e Homebridge. Se puoi, limita all'IP
+      #     della rete della famiglia (es. "192.168.60.10:1883:1883").
       - "1883:1883"
     volumes:
       - ./mosquitto:/mosquitto/config
@@ -35,7 +41,8 @@ services:
   homebridge:
     image: homebridge/homebridge:latest
     restart: unless-stopped
-    # HomeKit needs multicast DNS: host networking is required.
+    # EN: HomeKit needs multicast DNS: host networking is required.
+    # IT: HomeKit usa il DNS multicast: serve la rete dell'host.
     network_mode: host
     volumes:
       - ./homebridge:/homebridge

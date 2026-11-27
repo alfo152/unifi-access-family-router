@@ -2,8 +2,9 @@ name: UniFi Access Family Router
 version: "0.2.0"
 slug: access_family_router
 description: >-
-  Rings only the family whose directory entry was called on a UniFi Access
-  intercom (G3 Intercom): Apple Home via Homebridge and Home Assistant.
+  Rings only the called family on a UniFi Access intercom (G3), with a button
+  and a lock per door. / Squilla solo la famiglia chiamata sul citofono UniFi
+  Access (G3), con pulsante e serratura per ogni porta.
 url: "https://github.com/alfo152/unifi-access-family-router"
 arch:
   - aarch64

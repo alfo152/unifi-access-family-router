@@ -34,7 +34,8 @@ except the intercom and the UniFi console in the stairwell.
 Do you have a **G3 Intercom** (or Intercom) with **UniFi Access** and at
 least two directory entries? Install the router, leave `learn_mode: true`,
 call each entry once and
-[send a test report](https://github.com/alfo152/unifi-access-family-router/issues/new?template=test_report.yml).
+[send a test report](https://github.com/alfo152/unifi-access-family-router/issues/new?template=test_report.yml)
+(English or Italian).
 
 The single most useful answer: **does each directory entry show a different
 `room_id` in the log?** With the default settings (no family IDs yet,
@@ -57,7 +58,8 @@ reaches the console. It only listens.
    python3 watch_calls.py CONSOLE_IP
    ```
 
-   On Windows, use `py` instead of `python3`.
+   On Windows, use `py` instead of `python3`. Messages are in English, or
+   in Italian with `--lang it` (automatic on an Italian computer).
 
 3. Paste the token when asked, call each directory entry once from the
    intercom, press **Ctrl+C** and share the summary it prints (no token
@@ -289,7 +291,8 @@ MQTT 3.1.1 specification, the MQTT client against a test broker, the
 WebSocket client against the Node.js `ws` library over TLS (fragmentation,
 large frames, ping/pong, close codes, heartbeat, wrong token, certificate
 pinning), the REST client, the service with reconnections, the command line,
-and an end-to-end simulation of a 3-family building. The WebSocket and
+the consistency of docs and examples in both languages, and an end-to-end
+simulation of a 3-family building. The WebSocket and
 end-to-end tests are skipped if `node` and the `ws` module are not available
 (`WS_MODULE_PATH`).
 

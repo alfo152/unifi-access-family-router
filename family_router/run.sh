@@ -1,6 +1,7 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
 # Start script of the Home Assistant add-on.
+# Script di avvio dell'add-on di Home Assistant.
 set -e
 
 OPTIONS=/data/options.json
@@ -17,9 +18,10 @@ if [ -z "${mqtt_host}" ]; then
         MQTT_USERNAME="$(bashio::services mqtt 'username')"
         MQTT_PASSWORD="$(bashio::services mqtt 'password')"
         export MQTT_HOST MQTT_PORT MQTT_USERNAME MQTT_PASSWORD
-        bashio::log.info "Using the Home Assistant MQTT broker ${MQTT_HOST}:${MQTT_PORT}"
+        bashio::log.info "Using the Home Assistant MQTT broker / Uso il broker MQTT di Home Assistant ${MQTT_HOST}:${MQTT_PORT}"
     else
         bashio::log.warning "No MQTT broker found: install the Mosquitto broker add-on, or fill in mqtt.host"
+        bashio::log.warning "Nessun broker MQTT: installa l'add-on Mosquitto broker oppure compila mqtt.host"
     fi
 fi
 

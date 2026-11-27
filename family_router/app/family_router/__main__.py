@@ -166,12 +166,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 path = candidate
                 break
     if not path:
-        print("ERROR: no configuration file (use --config)", file=sys.stderr)
+        print(
+            "ERROR: no configuration file (use --config)\n"
+            "ERRORE: nessun file di configurazione (usa --config)",
+            file=sys.stderr,
+        )
         return 2
     try:
         config = load_config(path, force_learn=args.learn)
     except ConfigError as exc:
-        print(f"CONFIGURATION ERROR: {exc}", file=sys.stderr)
+        print(
+            f"CONFIGURATION ERROR / ERRORE DI CONFIGURAZIONE: {exc}\n"
+            "Fix the option above and restart. / Correggi l'opzione indicata e riavvia.",
+            file=sys.stderr,
+        )
         return 2
 
     _setup_logging(config.log_level)

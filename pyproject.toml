@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "unifi-access-family-router"
 version = "0.2.0"
-description = "Ring only the called family on a UniFi Access intercom (Apple Home via Homebridge, Home Assistant via MQTT)."
+description = "Ring only the called family on a UniFi Access intercom (Home Assistant via MQTT, Apple Home via the HomeKit Bridge). / Squilla solo la famiglia chiamata sul citofono UniFi Access."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"

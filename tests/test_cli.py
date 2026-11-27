@@ -43,6 +43,7 @@ class CliBasicsTests(unittest.IsolatedAsyncioTestCase):
             code, _, err = await run_cli("--config", fh.name)
             self.assertEqual(code, 2)
             self.assertIn("CONFIGURATION ERROR", err)
+            self.assertIn("ERRORE DI CONFIGURAZIONE", err)
             self.assertIn("access.token", err)
         finally:
             os.unlink(fh.name)
