@@ -26,40 +26,41 @@ that family's doorbell rings.
 - Show **only the G3 Intercom**: turn the *Device* option off globally and on
   for the intercom (the most specific setting wins).
 - Keep **Audio → Two-way audio** enabled (default).
-- Enable **Doorbell → Mute** (`Doorbell.Mute`): it adds a switch that decides
-  whether HomeKit chimes when the doorbell is pressed.
+- Enable **Doorbell → Mute** (`Doorbell.Mute`) and turn its switch **on** in
+  the Home app, so the HBUP tile never rings by itself (see step 3).
 
 Pair the Homebridge bridge with **this family's** Apple Home only (QR code in
 the Homebridge UI).
 
 ## 3. Ringing one family only
 
-HBUP 8.0+ turns every press of an Access intercom into a HomeKit ring. In a
-multi-family building that would ring every family. The router therefore:
+HBUP 8.0+ turns every press of an Access intercom into a HomeKit ring, so in
+a multi-family building every family would ring.
 
-1. leaves the automatic ring **muted** (switch from step 2 turned **on** in
-   the Home app);
-2. publishes `true` on `unifi/protect/<G3 MAC>/doorbell/set` only for this
-   family's calls; HBUP documents this MQTT topic as "trigger the doorbell to
-   generate a ring event".
+> **Checked in the HBUP 8.4.0 source code** (`src/nvr/event-dispatch.ts`):
+> the automatic intercom ring and the MQTT `doorbell/set` trigger both go
+> through the same `doorbellEventHandler`, which skips the HomeKit ring when
+> `Doorbell.Mute` is on. So with HBUP alone you get either every ring or
+> none: the "mute + MQTT trigger" idea of earlier versions of this guide
+> does **not** work. A small HBUP option (ignore automatic Access rings, keep
+> MQTT/Trigger rings) has been requested from the author; this guide will be
+> updated if it arrives.
 
-**Test (2 minutes):** with the mute switch on, call another family from the
-intercom → nothing must ring. Call your family → the router logs
-`Ring … for family …` and the Home app must ring.
-
-- ✅ It rings: done, use this setup (option A).
-- ❌ It does not ring: in your HBUP version the mute switch also silences
-  MQTT-triggered rings. Use option B.
-
-### Option B: ring through the Home Assistant HomeKit Bridge
+### Ring through the Home Assistant HomeKit Bridge (works today)
 
 Home Assistant exposes the G3 camera to Apple Home with this project's
 **Doorbell** event entity as `linked_doorbell_sensor`
 ([`examples/ha-homekit-bridge.yaml`](../examples/ha-homekit-bridge.yaml)).
 Only this family's calls fire that event, so only this family rings, with a
-snapshot in the notification. The Home Assistant bridge does not support
-talking back, so keep the HBUP intercom tile (still muted) to **talk** and to
-**unlock**.
+snapshot in the notification and live video.
+
+The Home Assistant bridge does not support talking back, so keep the HBUP
+intercom tile **muted** (step 2) to **talk** and to **unlock**: one tile
+rings, the other one talks.
+
+**Test (2 minutes):** call another family from the intercom → nothing rings
+in your Apple Home. Call your family → the router logs `Ring … for family …`
+and the bridge camera rings in the Home app.
 
 ## 4. Talking and unlocking
 

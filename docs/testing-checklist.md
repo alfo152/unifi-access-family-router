@@ -30,8 +30,8 @@ the call receivers) and report it in an issue.
 
 ## Apple Home
 
-- [ ] Ring with the mute switch on (option A) works only for your family —
-      otherwise switch to option B ([homekit.md](homekit.md)).
+- [ ] Only your family's calls ring the HomeKit Bridge camera
+      ([homekit.md](homekit.md)); the muted HBUP tile never rings.
 - [ ] Talk: the visitor hears you (you will hear your own echo).
 - [ ] Unlock from the intercom tile opens the door.
 

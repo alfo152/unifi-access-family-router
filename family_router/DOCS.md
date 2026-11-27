@@ -50,7 +50,7 @@ Install the **Mosquitto broker** add-on and the MQTT integration first.
 
 ## Entities
 
-Device **Intercom - <family name>**: *Doorbell* (event), *Call result*
+Device **Intercom - *family name***: *Doorbell* (event), *Call result*
 (event), *Call active* (binary sensor), *Unlock* (button), *Last ring room_id*
 (learn mode). Examples of dashboard, notification and HomeKit Bridge:
 <https://github.com/alfo152/unifi-access-family-router/tree/main/examples>

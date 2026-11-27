@@ -107,18 +107,23 @@ destinatari della chiamata) e segnalalo su GitHub.
 2. Nel plugin: console, utente locale della famiglia, **MQTT URL** del broker
    della famiglia, **MQTT topic** `unifi/protect`.
 3. Feature Options: mostra solo il G3 Intercom, lascia attivo l'audio nei due
-   sensi, attiva **Doorbell → Mute** e accendi l'interruttore nell'app Casa.
+   sensi, attiva **Doorbell → Mute** e accendi l'interruttore nell'app Casa:
+   questa tessera serve per **parlare e aprire**, non squilla.
 4. Abbina Homebridge **solo** alla Casa della tua famiglia.
-5. **Prova**: chiama un'altra famiglia → da te non squilla niente; chiama la
-   tua → squilla. Se con l'interruttore acceso non squilla nemmeno la tua,
-   usa l'opzione B (HomeKit Bridge di Home Assistant), spiegata nella guida.
+5. Lo **squillo solo per la tua famiglia** passa dal HomeKit Bridge di Home
+   Assistant: telecamera del G3 + evento **Campanello** di questo progetto
+   ([esempio](examples/ha-homekit-bridge.yaml)). Verificato nel codice di
+   homebridge-unifi-protect 8.4.0: con Mute acceso il plugin non fa squillare
+   nemmeno i comandi MQTT, quindi da solo non basta.
+6. **Prova**: chiama un'altra famiglia → da te non squilla niente; chiama la
+   tua → squilla la telecamera del bridge.
 
 ## 5. Home Assistant → [dettagli](docs/home-assistant.md)
 
 Compaiono da soli: **Campanello** (evento), **Esito chiamata** (evento),
 **Chiamata in corso**, **Apri** (pulsante). Esempi pronti in
 [`examples/`](examples/): schermata con video e pulsante Apri, notifica sul
-telefono con il tasto **Apri**, collegamento ad Apple Casa (opzione B).
+telefono con il tasto **Apri**, collegamento ad Apple Casa (HomeKit Bridge).
 
 ## 6. Prova finale
 

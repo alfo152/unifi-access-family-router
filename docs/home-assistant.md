@@ -9,7 +9,7 @@
 
 ## 2. Entities created (MQTT discovery)
 
-Device **Intercom - <family name>**. Entity IDs depend on the names; with the
+Device **Intercom - *family name***. Entity IDs depend on the names; with the
 family "Famiglia Rossi" they are typically:
 
 | Entity | Meaning |
@@ -33,7 +33,7 @@ the G3 Intercom appears as a camera (e.g. `camera.g3_intercom_high`).
   [`examples/ha-dashboard.yaml`](../examples/ha-dashboard.yaml)
 - Phone notification with an **Open** action:
   [`examples/ha-automations.yaml`](../examples/ha-automations.yaml)
-- Apple Home through the HomeKit Bridge (option B):
+- Apple Home through the HomeKit Bridge (per-family ring):
   [`examples/ha-homekit-bridge.yaml`](../examples/ha-homekit-bridge.yaml)
 
 ## 5. Learn mode in the add-on

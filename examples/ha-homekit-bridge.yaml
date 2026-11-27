@@ -1,4 +1,4 @@
-# configuration.yaml - option B for Apple Home (see docs/homekit.md).
+# configuration.yaml - per-family ring in Apple Home through the HomeKit Bridge (see docs/homekit.md).
 # Exposes the G3 camera to THIS family's Apple Home as a video doorbell that
 # rings only when this family is called (the router's Doorbell event entity).
 # The HomeKit Bridge does not support talking back: talk from the

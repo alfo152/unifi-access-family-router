@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Docs: `Doorbell.Mute` in homebridge-unifi-protect also silences
+  MQTT-triggered rings (checked in the 8.4.0 source), so per-family rings in
+  Apple Home now go through the Home Assistant HomeKit Bridge, with the HBUP
+  tile kept muted for talking and unlocking. Network docs list TCP 7446 for
+  HBUP 8.4+ direct livestreams.
+
 - `tools/watch_calls.py`: standalone, read-only check (Python 3.8+, standard
   library only) that prints the `room_id` of every intercom call and says
   whether different directory entries produce different `room_id`s. No Home

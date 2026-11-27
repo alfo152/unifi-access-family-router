@@ -231,11 +231,12 @@ the same options (match rules directly under `family`).
   Intercom that each entry has its own `room_id`. If it does not,
   `door_guard_ids` (the call receivers) is the fallback rule.
 - **Apple Home, automatic rings**: homebridge-unifi-protect ≥ 8.0 rings
-  HomeKit for *every* intercom press. To ring one family only, its automatic
-  chime must be silenced while the router's MQTT trigger still rings. How
-  `Doorbell.Mute` and `doorbell/set` interact is not documented: test it, and
-  if it does not work use the Home Assistant HomeKit Bridge option described
-  in [docs/homekit.md](docs/homekit.md).
+  HomeKit for *every* intercom press, and its `Doorbell.Mute` switch also
+  silences MQTT-triggered rings (checked in the 8.4.0 source). Per-family
+  rings in Apple Home therefore go through the Home Assistant HomeKit Bridge
+  today, with the HBUP tile kept muted for talking and unlocking
+  ([docs/homekit.md](docs/homekit.md)). An HBUP option to ignore automatic
+  Access rings has been requested.
 - **Two-way audio in Apple Home** is provided by homebridge-unifi-protect and
   depends on Protect exposing talkback for the G3 Intercom (a G3 owner
   confirmed Protect's native talkback session works). The plugin has no

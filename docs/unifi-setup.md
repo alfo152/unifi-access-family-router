@@ -57,8 +57,9 @@ families must not reach each other.
 - Put each family on its own network/VLAN (or a dedicated port of the console).
 - Allow from each family network to the console only what is needed:
   TCP **12445** (Access API: notifications, doors, unlock) and the ports used
-  by Protect clients (typically TCP **443**, and **7441** for RTSPS streams in
-  Home Assistant).
+  by Protect clients (typically TCP **443**, **7441** for RTSPS streams in
+  Home Assistant, and **7446** for the direct livestreams of
+  homebridge-unifi-protect 8.4+, which otherwise falls back to 443).
 - Block traffic between the family networks.
 
 ## 6. Certificate fingerprint
