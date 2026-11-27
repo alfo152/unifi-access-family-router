@@ -5,7 +5,10 @@ Entities created in the family's own Home Assistant:
 * ``event``         Doorbell      (device_class doorbell, event type ``ring``)
 * ``event``         Call result   (answered elsewhere / unlocked / ...)
 * ``binary_sensor`` Call active
-* ``button``        Unlock        (only when unlock is enabled)
+* ``button``        Unlock <door> (one per door, only when unlock is enabled)
+* ``lock``          <door>        (one per door, for Apple Home through the
+  Home Assistant HomeKit Bridge: HomeKit asks for authentication before a
+  lock opens remotely)
 * ``sensor``        Last ring room_id (diagnostic, only in learn mode)
 
 The Doorbell event entity only ever fires ``ring`` so it can be used as
@@ -20,7 +23,13 @@ from . import __version__
 from .config import Config
 from .router import RESULT_EVENT_TYPES, Publish, Topics
 
-__all__ = ["discovery_messages"]
+__all__ = ["discovery_messages", "discovery_filter"]
+
+
+def discovery_filter(config: Config) -> str:
+    """MQTT filter matching every discovery topic of this family's device."""
+
+    return f"{config.mqtt.discovery_prefix}/+/access_family_router_{config.family.id}/+/config"
 
 
 def _config_topic(prefix: str, component: str, node: str, object_id: str) -> str:
@@ -101,18 +110,6 @@ def discovery_messages(config: Config, topics: Topics) -> list[Publish]:
             },
         ),
         entity(
-            "button",
-            "unlock",
-            {
-                "name": "Unlock",
-                "command_topic": topics.unlock_command,
-                "payload_press": "PRESS",
-                "icon": "mdi:door-open",
-            }
-            if config.unlock.enabled
-            else None,
-        ),
-        entity(
             "sensor",
             "learn",
             {
@@ -127,4 +124,42 @@ def discovery_messages(config: Config, topics: Topics) -> list[Publish]:
             else None,
         ),
     ]
+
+    doors = config.unlock.doors if config.unlock.enabled else ()
+    if not any(door.key == "" for door in doors):
+        # the single-door entities of 'unlock.door_id' are not in use
+        messages.append(entity("button", "unlock", None))
+        messages.append(entity("lock", "lock", None))
+    for door in doors:
+        suffix = f"_{door.key}" if door.key else ""
+        messages.append(
+            entity(
+                "button",
+                f"unlock{suffix}",
+                {
+                    "name": f"Unlock {door.name}" if door.name else "Unlock",
+                    "command_topic": topics.door_command(door),
+                    "payload_press": "PRESS",
+                    "icon": "mdi:door-open",
+                },
+            )
+        )
+        messages.append(
+            entity(
+                "lock",
+                f"lock{suffix}",
+                {
+                    "name": door.name or "Door",
+                    "command_topic": topics.door_command(door),
+                    "state_topic": topics.door_state(door),
+                    "payload_lock": "LOCK",
+                    "payload_unlock": "UNLOCK",
+                    "state_locked": "LOCKED",
+                    "state_unlocked": "UNLOCKED",
+                    "state_jammed": "JAMMED",
+                    "optimistic": False,
+                    "icon": "mdi:door",
+                },
+            )
+        )
     return messages

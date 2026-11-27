@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import unicodedata
 import unittest
 from typing import Any
 
@@ -14,10 +15,51 @@ import yaml
 
 from family_router import __version__
 from family_router.config import parse_config
+from family_router.discovery import discovery_messages
+from family_router.router import Topics
 
 from .support import ROOT
 
 ADDON = ROOT / "family_router"
+PACKAGE = ROOT / "examples" / "packages" / "intercom_family.yaml"
+ENTITY_RE = re.compile(
+    r"\b(?:event|button|lock|binary_sensor|sensor)\.intercom_famiglia_rossi_[a-z0-9_]+"
+)
+
+
+def ha_slug(text: str) -> str:
+    """Home Assistant's slugify, enough for the names used in the examples."""
+
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
+
+
+def expected_entity_ids(unlock: dict[str, Any]) -> set[str]:
+    """Entity IDs Home Assistant derives from our discovery for Famiglia Rossi."""
+
+    cfg = parse_config(
+        {
+            "access": {"host": "192.168.50.1", "token": "t"},
+            "family": {"name": "Famiglia Rossi"},
+            "mqtt": {"host": "127.0.0.1"},
+            "unlock": {"enabled": True, **unlock},
+            "learn_mode": True,
+        },
+        env={},
+    )
+    ids = set()
+    for message in discovery_messages(cfg, Topics(cfg)):
+        if not message.payload:
+            continue
+        body = json.loads(message.payload)
+        component = message.topic.split("/")[1]
+        ids.add(f"{component}.{ha_slug(body['device']['name'] + ' ' + body['name'])}")
+    return ids
+
+
+ALL_ENTITY_IDS = expected_entity_ids(
+    {"doors": ["Portone=d-1", "Cancello=d-2"]}
+) | expected_entity_ids({"door_id": "d-9"})
 
 
 def schema_keys(node: Any, prefix: str = "") -> set[str]:
@@ -46,6 +88,36 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(sorted(build["build_from"]), sorted(addon["arch"]))
         self.assertIn("mqtt:want", addon["services"])
         self.assertFalse(addon["init"])
+
+    def test_addon_doors_option(self) -> None:
+        """Doors typed in the add-on UI ("Name=door_id" lines) parse as expected."""
+
+        addon = yaml.safe_load((ADDON / "config.yaml").read_text())
+        self.assertEqual(addon["schema"]["unlock"]["doors"], ["str"])
+        options = json.loads(json.dumps(addon["options"]))
+        options["access"].update(host="192.168.50.1", token="t")
+        options["family"]["name"] = "Famiglia Rossi"
+        options["unlock"].update(enabled=True, doors=["Portone=d-1", "Cancello carrabile=d-2"])
+        cfg = parse_config(options, env={"MQTT_HOST": "core-mosquitto"})
+        self.assertEqual([d.key for d in cfg.unlock.doors], ["portone", "cancello_carrabile"])
+        self.assertEqual(cfg.unlock.relock_seconds, 5.0)
+        # the old single-door field alone still works
+        options["unlock"].update(doors=[], door_id="d-9")
+        self.assertEqual(parse_config(options, env={"MQTT_HOST": "x"}).unlock.door_id, "d-9")
+
+    def test_example_configs_parse(self) -> None:
+        for name in ("config.example.yaml", "stack/router/config.yaml.example"):
+            raw = yaml.safe_load((ROOT / name).read_text())
+            raw["unlock"]["enabled"] = False
+            raw["access"]["token"] = raw["access"].get("token") or "t"
+            raw["access"]["host"] = raw["access"].get("host") or "192.168.50.1"
+            raw["mqtt"]["host"] = raw["mqtt"].get("host") or "127.0.0.1"
+            raw["learn_mode"] = True
+            with self.subTest(name=name):
+                try:
+                    parse_config(raw, env={})
+                except Exception as exc:  # pragma: no cover - reported below
+                    self.fail(f"{name}: {exc}")
 
     def test_addon_defaults_are_valid_once_filled(self) -> None:
         """The add-on defaults + the 3 fields a user must fill = valid config."""
@@ -101,11 +173,94 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(platform["controllers"][0]["mqttTopic"], "unifi/protect")
 
     def test_examples_parse(self) -> None:
-        for path in (ROOT / "examples").glob("*.yaml"):
+        paths = list((ROOT / "examples").rglob("*.yaml"))
+        self.assertIn(PACKAGE, paths)
+        for path in paths:
             self.assertIsNotNone(yaml.safe_load(path.read_text()), path.name)
 
+    def test_entity_ids_in_docs_and_examples_exist(self) -> None:
+        """Every intercom entity ID quoted in docs/examples is one we create."""
+
+        self.assertIn("lock.intercom_famiglia_rossi_portone", ALL_ENTITY_IDS)
+        self.assertIn("button.intercom_famiglia_rossi_unlock_cancello", ALL_ENTITY_IDS)
+        self.assertIn("lock.intercom_famiglia_rossi_door", ALL_ENTITY_IDS)
+        files = (
+            list(ROOT.glob("*.md"))
+            + list((ROOT / "docs").rglob("*.md"))
+            + list((ROOT / "examples").rglob("*.yaml"))
+            + [ADDON / "DOCS.md"]
+        )
+        found = 0
+        for path in files:
+            for entity_id in ENTITY_RE.findall(path.read_text()):
+                found += 1
+                self.assertIn(entity_id, ALL_ENTITY_IDS, f"{path.relative_to(ROOT)}: {entity_id}")
+        self.assertGreater(found, 10)
+
+    def test_docs_are_bilingual(self) -> None:
+        """Every guide exists in English and Italian and links to the other."""
+
+        docs = ROOT / "docs"
+        english = {p.name for p in docs.glob("*.md")}
+        italian = {p.name for p in (docs / "it").glob("*.md")}
+        self.assertEqual(english, italian)
+        for name in english:
+            self.assertIn(f"(it/{name})", (docs / name).read_text(), name)
+            self.assertIn(f"(../{name})", (docs / "it" / name).read_text(), f"it/{name}")
+        self.assertIn("(LEGGIMI.md)", (ROOT / "README.md").read_text())
+        self.assertIn("(README.md)", (ROOT / "LEGGIMI.md").read_text())
+        self.assertIn("# 🇮🇹 Italiano", (ADDON / "DOCS.md").read_text())
+
+    def test_homekit_package(self) -> None:
+        """The HomeKit Bridge package is a valid Home Assistant 'homekit' config."""
+
+        package = yaml.safe_load(PACKAGE.read_text())
+        self.assertEqual(set(package), {"homekit"})
+        instances = package["homekit"]
+        self.assertIsInstance(instances, list)
+        ports = [item["port"] for item in instances]
+        names = [item["name"] for item in instances]
+        self.assertEqual(len(ports), len(set(ports)), "each instance needs its own port")
+        self.assertEqual(len(names), len(set(names)), "each instance needs its own name")
+        self.assertNotIn(21063, ports, "21063 is Home Assistant's default instance")
+        modes = {}
+        for item in instances:
+            self.assertLessEqual(set(item), {"name", "port", "mode", "filter", "entity_config"})
+            self.assertIn(item["mode"], ("bridge", "accessory"))
+            self.assertTrue(3 <= len(item["name"]) <= 25, "HomeKit names are 3-25 characters")
+            self.assertTrue(1024 < item["port"] < 65536)
+            included = item["filter"]["include_entities"]
+            self.assertEqual(len(included), len(set(included)))
+            if item["mode"] == "accessory":
+                self.assertEqual(len(included), 1, "accessory mode exposes exactly one entity")
+            for entity_id, options in (item.get("entity_config") or {}).items():
+                self.assertIn(entity_id, included)
+                self.assertLessEqual(
+                    set(options), {"name", "linked_doorbell_sensor", "support_audio"}
+                )
+            modes[item["mode"]] = item
+        camera = modes["accessory"]
+        camera_id = camera["filter"]["include_entities"][0]
+        self.assertTrue(camera_id.startswith("camera."))
+        options = camera["entity_config"][camera_id]
+        self.assertEqual(options["linked_doorbell_sensor"], "event.intercom_famiglia_rossi_doorbell")
+        self.assertIs(options["support_audio"], True)
+        locks = modes["bridge"]["filter"]["include_entities"]
+        self.assertTrue(locks)
+        for entity_id in locks:
+            self.assertTrue(entity_id.startswith("lock."), entity_id)
+            self.assertIn(entity_id, ALL_ENTITY_IDS)
+        # the guides tell users to replace the lines marked with <<<
+        text = PACKAGE.read_text()
+        for entity_id in [camera_id, options["linked_doorbell_sensor"], *locks]:
+            line = next(line for line in text.splitlines() if entity_id in line)
+            self.assertTrue(
+                "<<<" in line or "<<<" in text.splitlines()[text.splitlines().index(line) - 1],
+                entity_id,
+            )
+
     def test_markdown_links(self) -> None:
-        for md in list(ROOT.glob("*.md")) + list((ROOT / "docs").glob("*.md")) + [ADDON / "DOCS.md"]:
+        for md in list(ROOT.glob("*.md")) + list((ROOT / "docs").rglob("*.md")) + [ADDON / "DOCS.md"]:
             for target in re.findall(r"\]\(([^)#\s]+)(?:#[^)]*)?\)", md.read_text()):
                 if target.startswith(("http://", "https://", "mailto:")):
                     continue

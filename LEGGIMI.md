@@ -1,21 +1,29 @@
 # UniFi Access Family Router - guida in italiano
 
+🇬🇧 [Read in English](README.md)
+
 **Un G3 Intercom sul portone, tre famiglie, ognuna con il suo Home Assistant
 e la sua Apple Casa: squilla solo la famiglia che il visitatore ha chiamato.**
 
 Il programma ascolta le API ufficiali di UniFi Access, legge quale voce
 della rubrica è stata chiamata (`room_id`) e fa squillare **solo** quella
-famiglia: in Apple Casa (tramite Homebridge, con video e audio nei due sensi)
-e in Home Assistant (campanello, chiamata in corso, pulsante Apri).
+famiglia:
+
+- 🍎 **Apple Casa**: campanello con anteprima e video dal vivo, più una
+  serratura per ogni porta, tramite il HomeKit Bridge di Home Assistant
+  ([pacchetto pronto](examples/packages/intercom_family.yaml)); per parlare
+  c'è [homebridge-unifi-protect](https://github.com/hjdhjd/homebridge-unifi-protect)
+- 🏠 **Home Assistant**: campanello, chiamata in corso, un pulsante Apri e
+  una serratura per ogni porta (*Portone*, *Cancello*, *Garage*…)
 
 Ogni famiglia ha **la sua copia**: suo token, suo broker MQTT, suo
 Homebridge, suo Home Assistant. In comune ci sono solo il citofono e la
 console nell'armadio delle scale.
 
-> Stato: versione 0.1.1, verificata con test automatici basati sulla
+> Stato: versione 0.2.0, verificata con test automatici basati sulla
 > documentazione ufficiale delle API e con la simulazione di un palazzo con
 > 3 famiglie. Va confermata sul G3 Intercom vero con la
-> [lista di prova](docs/testing-checklist.md).
+> [lista di prova](docs/it/testing-checklist.md).
 
 **🧪 Cerco tester:** hai un G3 Intercom con UniFi Access e almeno due voci
 in rubrica? Installa, lascia `learn_mode: true`, chiama ogni voce una volta
@@ -51,13 +59,13 @@ ascolta e basta.
 - Per ogni famiglia: un piccolo computer sempre acceso con **Home Assistant
   OS** (add-on) oppure **Docker** (pacchetto pronto in `stack/`)
 
-## 1. Console (una volta sola) → [dettagli](docs/unifi-setup.md)
+## 1. Console (una volta sola) → [dettagli](docs/it/unifi-setup.md)
 
 1. Rubrica del G3: **una voce per famiglia**, con i destinatari solo di
    quella famiglia (utenti, schermi, telefoni).
 2. **Un token API per famiglia**: Access → Impostazioni → Generale →
    Avanzate → API Token. Permessi: `view:device`; aggiungi `view:space` ed
-   `edit:space` solo se vuoi il pulsante Apri.
+   `edit:space` solo se vuoi aprire le porte.
 3. **Un utente locale per famiglia** per Homebridge (solo accesso locale).
 4. Rete: ogni famiglia vede la console (porta **12445** e le porte di
    Protect), ma non le altre famiglie.
@@ -93,41 +101,60 @@ segui i comandi scritti in cima a `stack/docker-compose.yml`.
 2. Dal citofono chiama **una volta ogni famiglia**.
 3. Nel log trovi una riga per ogni chiamata:
    `LEARN: ring … room_id=WR-… -> no match`
-   e l'ID della porta: `LEARN: door 'Portone' -> door_id …`
-4. Copia il `room_id` **della tua famiglia** in `family.room_ids`
-   (e il `door_id` in `unlock.door_id` se vuoi il pulsante Apri).
-5. Metti `learn_mode: false` e riavvia.
+   e una riga pronta per ogni porta:
+   `LEARN: door 'Portone' -> door_id … (add-on: unlock.doors "Portone=…")`
+4. Copia il `room_id` **della tua famiglia** in `family.room_ids`.
+5. Porte da aprire (facoltativo): `unlock.enabled: true` e in
+   `unlock.doors` una riga per porta, copiata dal log:
+
+   ```yaml
+   doors:
+     - Portone=0ed545f8-…
+     - Cancello=a8f2c6d1-…
+   ```
+
+   Fino a 10 porte; per ognuna Home Assistant crea un pulsante e una
+   serratura ([dettagli](docs/it/home-assistant.md#3-porte)).
+6. Metti `learn_mode: false` e riavvia.
 
 Se tutte le voci danno lo stesso `room_id`, usa `door_guard_ids` (i
 destinatari della chiamata) e segnalalo su GitHub.
 
-## 4. Apple Casa → [dettagli](docs/homekit.md)
+## 4. Apple Casa → [guida passo passo](docs/it/homekit-bridge.md)
 
-1. Homebridge + plugin **homebridge-unifi-protect** (versione 8 o successiva).
-2. Nel plugin: console, utente locale della famiglia, **MQTT URL** del broker
-   della famiglia, **MQTT topic** `unifi/protect`.
-3. Feature Options: mostra solo il G3 Intercom, lascia attivo l'audio nei due
-   sensi, attiva **Doorbell → Mute** e accendi l'interruttore nell'app Casa:
-   questa tessera serve per **parlare e aprire**, non squilla.
-4. Abbina Homebridge **solo** alla Casa della tua famiglia.
-5. Lo **squillo solo per la tua famiglia** passa dal HomeKit Bridge di Home
-   Assistant: telecamera del G3 + evento **Campanello** di questo progetto
-   ([esempio](examples/ha-homekit-bridge.yaml)). Verificato nel codice di
-   homebridge-unifi-protect 8.4.0: con Mute acceso il plugin non fa squillare
-   nemmeno i comandi MQTT, quindi da solo non basta.
-6. **Prova**: chiama un'altra famiglia → da te non squilla niente; chiama la
-   tua → squilla la telecamera del bridge.
+1. **Squillo, video e serrature**: copia il pacchetto
+   [`examples/packages/intercom_family.yaml`](examples/packages/intercom_family.yaml)
+   in `/config/packages/` del Home Assistant della famiglia, metti i tuoi ID,
+   riavvia e inquadra i 2 codici QR con l'app Casa.
+2. **Parlare**: Homebridge + plugin **homebridge-unifi-protect** (versione 8
+   o successiva) con console, utente locale della famiglia, **MQTT URL** del
+   broker della famiglia, **MQTT topic** `unifi/protect`.
+3. Nelle Feature Options del plugin: mostra solo il G3 Intercom, lascia
+   attivo l'audio nei due sensi, attiva **Doorbell → Mute** e accendi
+   l'interruttore nell'app Casa: questo riquadro serve per **parlare**, non
+   squilla ([dettagli](docs/it/homekit.md)).
+4. Abbina tutto **solo** alla Casa della tua famiglia.
+5. **Prova**: chiama un'altra famiglia → da te non squilla niente; chiama la
+   tua → squilla il citofono del bridge; apri **Portone** → Face ID e la
+   porta si apre.
 
-## 5. Home Assistant → [dettagli](docs/home-assistant.md)
+Perché non basta homebridge-unifi-protect: verificato nel suo codice
+(versione 8.4.0), con Mute acceso non fa squillare nemmeno i comandi MQTT.
+All'autore è stata chiesta un'opzione
+([#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363)).
+
+## 5. Home Assistant → [dettagli](docs/it/home-assistant.md)
 
 Compaiono da soli: **Campanello** (evento), **Esito chiamata** (evento),
-**Chiamata in corso**, **Apri** (pulsante). Esempi pronti in
-[`examples/`](examples/): schermata con video e pulsante Apri, notifica sul
-telefono con il tasto **Apri**, collegamento ad Apple Casa (HomeKit Bridge).
+**Chiamata in corso** e, per ogni porta, un pulsante **Apri** e una
+**serratura** (*chiusa*, *aperta* per qualche secondo, *bloccata* se la
+console rifiuta). Esempi pronti in [`examples/`](examples/): pacchetto per
+Apple Casa, schermata con video e un pulsante per porta, notifica sul
+telefono con il tasto **Apri**.
 
 ## 6. Prova finale
 
-Segui la [lista di prova](docs/testing-checklist.md): ogni famiglia riceve
+Segui la [lista di prova](docs/it/testing-checklist.md): ogni famiglia riceve
 solo le sue chiamate, l'apertura funziona e il registro di Access mostra
 quale famiglia ha aperto.
 
@@ -142,6 +169,9 @@ quale famiglia ha aperto.
 
 - Il significato di `room_id` è dedotto dalla documentazione ufficiale:
   va confermato con la modalità apprendimento sul G3 vero.
+- Il pacchetto per Apple Casa richiede che il G3 Intercom compaia come
+  telecamera nell'integrazione UniFi Protect di Home Assistant: da
+  confermare su un G3 vero.
 - Audio nei due sensi in Apple Casa: lo fornisce homebridge-unifi-protect;
   senti l'eco della tua voce (chi è alla porta sente bene).
 - Parlare da una schermata di Home Assistant non fa parte del progetto.

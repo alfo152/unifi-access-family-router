@@ -31,7 +31,7 @@ class CliBasicsTests(unittest.IsolatedAsyncioTestCase):
     async def test_version(self) -> None:
         code, out, _ = await run_cli("--version")
         self.assertEqual(code, 0)
-        self.assertIn("0.1.1", out)
+        self.assertIn("0.2.0", out)
 
     async def test_missing_and_invalid_config(self) -> None:
         code, _, err = await run_cli("--config", "/nonexistent.yaml")
@@ -113,6 +113,16 @@ class CliLiveTests(unittest.IsolatedAsyncioTestCase):
         code, out, _ = await run_cli("--config", self.write_config("full"), "--list-doors")
         self.assertEqual(code, 0)
         self.assertIn("UCG-Max - GF - Portone", out)
+        self.assertIn('- "Portone=0ed545f8-2fcd-4839-9021-b39e707f6aa9"', out)
+        self.assertIn('- "Cancello=a8f2c6d1-3b4e-4f5a-9c7d-1e2f3a4b5c6d"', out)
+
+        # --check names every configured door
+        cfg = self.write_config("full", unlock={"enabled": True, "doors": [
+            "Portone=0ed545f8-2fcd-4839-9021-b39e707f6aa9", "Cancello=a8f2c6d1-3b4e-4f5a-9c7d-1e2f3a4b5c6d"]})
+        code, out, err = await run_cli("--config", cfg, "--check")
+        self.assertEqual(code, 0, err)
+        self.assertIn("Unlock is enabled for Portone", out)
+        self.assertIn("Unlock is enabled for Cancello", out)
 
     async def test_run_learn_and_sigterm(self) -> None:
         broker = TestBroker()

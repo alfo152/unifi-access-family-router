@@ -1,13 +1,23 @@
-# Phone notification when THIS family is called, with an "Apri" (open) action.
-# Requires the Home Assistant Companion app. Replace the entity IDs and the
-# notify service with yours.
+# EN: phone notification when THIS family is called, with an "Apri" (open)
+#     action that asks for Face ID / passcode. Requires the Home Assistant
+#     Companion app. Replace the entity IDs and the notify service with yours.
+#     With the HomeKit Bridge package (docs/homekit-bridge.md) Apple Home
+#     already notifies: use this automation only if you also want the
+#     Companion app notification.
+# IT: notifica sul telefono quando chiamano QUESTA famiglia, con il tasto
+#     "Apri" che chiede Face ID / codice. Serve l'app Companion di Home
+#     Assistant. Sostituisci gli ID e il servizio notify con i tuoi.
+#     Con il pacchetto HomeKit Bridge (docs/it/homekit-bridge.md) Apple Casa
+#     notifica già: usa questa automazione solo se vuoi anche la notifica
+#     dell'app Companion.
 - alias: Citofono - chiamata per la famiglia
   mode: single
   triggers:
     - trigger: state
       entity_id: event.intercom_famiglia_rossi_doorbell
   conditions:
-    # ignore restarts (unavailable -> restored state)
+    # EN: ignore restarts (unavailable -> restored state)
+    # IT: ignora i riavvii (non disponibile -> stato ripristinato)
     - condition: template
       value_template: >-
         {{ trigger.from_state is not none
@@ -36,4 +46,4 @@
       continue_on_timeout: false
     - action: button.press
       target:
-        entity_id: button.intercom_famiglia_rossi_unlock
+        entity_id: button.intercom_famiglia_rossi_unlock_portone

@@ -1,5 +1,5 @@
 name: UniFi Access Family Router
-version: "0.1.1"
+version: "0.2.0"
 slug: access_family_router
 description: >-
   Rings only the family whose directory entry was called on a UniFi Access
@@ -40,9 +40,11 @@ options:
     camera_mac: ""
   unlock:
     enabled: false
+    doors: []
     door_id: ""
     actor_name: ""
     cooldown_seconds: 3
+    relock_seconds: 5
   learn_mode: true
   call_timeout_seconds: 60
   log_level: info
@@ -76,9 +78,12 @@ schema:
     camera_mac: str?
   unlock:
     enabled: bool
+    doors:
+      - str
     door_id: str?
     actor_name: str?
     cooldown_seconds: float(0,60)
+    relock_seconds: float(1,60)
   learn_mode: bool
   call_timeout_seconds: int(5,600)
   log_level: list(debug|info|warning|error)

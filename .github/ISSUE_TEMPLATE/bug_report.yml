@@ -1,46 +1,49 @@
-name: Bug report
-description: Something does not work as documented.
+name: Bug report / Segnala un errore
+description: Something does not work as documented. / Qualcosa non funziona come scritto nella guida.
 title: "[Bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
+        You can write in English or Italian. / Puoi scrivere in inglese o in italiano.
+
         **Remove API tokens, passwords and public IP addresses** from everything you paste.
+        **Togli token API, password e indirizzi IP pubblici** da tutto quello che incolli.
   - type: input
     id: version
     attributes:
-      label: Router version
-      placeholder: "0.1.1"
+      label: Router version / Versione del router
+      placeholder: "0.2.0"
     validations:
       required: true
   - type: dropdown
     id: install
     attributes:
-      label: How do you run the router?
+      label: How do you run the router? / Come avvii il router?
       options:
         - Home Assistant add-on
-        - Docker stack
-        - Command line (pip)
+        - Docker stack / Pacchetto Docker
+        - Command line (pip) / Riga di comando (pip)
     validations:
       required: true
   - type: textarea
     id: what_happened
     attributes:
-      label: What happened?
+      label: What happened? / Cosa è successo?
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: What did you expect?
+      label: What did you expect? / Cosa ti aspettavi?
   - type: textarea
     id: logs
     attributes:
-      label: Router log
+      label: Router log / Log del router
       render: text
   - type: textarea
     id: config
     attributes:
-      label: Configuration (without token and passwords)
+      label: Configuration without token and passwords / Configurazione senza token e password
       render: yaml

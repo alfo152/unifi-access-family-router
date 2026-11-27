@@ -1,94 +1,98 @@
-name: Test report
-description: Tell us how the router behaved with your real UniFi hardware.
+name: Test report / Resoconto di prova
+description: How the router behaved with your real UniFi hardware. / Come si è comportato il router con il tuo hardware UniFi.
 title: "[Test report] "
 labels: ["test report"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing! Even a partial report (learn mode only) helps a lot.
+        Thanks for testing! Even a partial report (learn mode only) helps a lot. You can write in English or Italian.
+        Grazie per la prova! Anche un resoconto parziale (solo modalità apprendimento) aiuta molto. Puoi scrivere in inglese o in italiano.
 
         **Remove API tokens, passwords and public IP addresses** from everything you paste.
+        **Togli token API, password e indirizzi IP pubblici** da tutto quello che incolli.
   - type: input
     id: console
     attributes:
-      label: UniFi console
+      label: UniFi console / Console UniFi
       placeholder: UCG-Max, UDM Pro, Cloud Key G2+...
     validations:
       required: true
   - type: input
     id: versions
     attributes:
-      label: UniFi Access and UniFi Protect versions
+      label: UniFi Access and UniFi Protect versions / Versioni di UniFi Access e UniFi Protect
       placeholder: Access 4.x.x / Protect 6.x.x
     validations:
       required: true
   - type: dropdown
     id: intercom
     attributes:
-      label: Intercom model
+      label: Intercom model / Modello di citofono
       options:
         - G3 Intercom
-        - Intercom (first generation)
-        - Other (write it below)
+        - Intercom (first generation / prima generazione)
+        - Other, write it below / Altro, scrivilo sotto
     validations:
       required: true
   - type: input
     id: intercom_firmware
     attributes:
-      label: Intercom firmware
+      label: Intercom firmware / Firmware del citofono
       placeholder: "1.x.x"
   - type: dropdown
     id: install
     attributes:
-      label: How did you run the router?
+      label: How did you run the router? / Come hai avviato il router?
       options:
         - Home Assistant add-on
-        - Docker stack
-        - Command line (pip)
+        - Docker stack / Pacchetto Docker
+        - Command line (pip) / Riga di comando (pip)
+        - tools/watch_calls.py only / solo tools/watch_calls.py
     validations:
       required: true
   - type: input
     id: entries
     attributes:
-      label: Number of directory entries on the intercom
+      label: Number of directory entries on the intercom / Numero di voci nella rubrica del citofono
       placeholder: "3"
   - type: dropdown
     id: distinct_room_id
     attributes:
-      label: In learn mode, does each directory entry show a different room_id?
-      description: This is the most important question.
+      label: Does each directory entry show a different room_id? / Ogni voce della rubrica mostra un room_id diverso?
+      description: This is the most important question. / È la domanda più importante.
       options:
-        - Yes, every entry has its own room_id
-        - No, different entries show the same room_id
-        - Not tested yet
+        - Yes, every entry has its own room_id / Sì, ogni voce ha il suo room_id
+        - No, different entries show the same room_id / No, voci diverse mostrano lo stesso room_id
+        - Not tested yet / Non ancora provato
     validations:
       required: true
   - type: checkboxes
     id: works
     attributes:
-      label: What worked?
-      description: Tick only what you tested and saw working.
+      label: What worked? / Cosa ha funzionato?
+      description: Tick only what you tested and saw working. / Spunta solo quello che hai provato e hai visto funzionare.
       options:
-        - label: Only the called family received the ring
-        - label: Home Assistant Doorbell event
-        - label: Home Assistant Call active and Call result
-        - label: Apple Home doorbell notification (homebridge-unifi-protect)
-        - label: Live video in Apple Home
-        - label: Two-way audio in Apple Home
-        - label: Home Assistant Unlock button opened the door
+        - label: Only the called family received the ring / Ha squillato solo la famiglia chiamata
+        - label: Home Assistant Doorbell event / Evento Doorbell in Home Assistant
+        - label: Home Assistant Call active and Call result / Call active e Call result in Home Assistant
+        - label: Apple Home doorbell through the Home Assistant HomeKit Bridge / Campanello in Apple Casa tramite il HomeKit Bridge di Home Assistant
+        - label: Live video in Apple Home / Video dal vivo in Apple Casa
+        - label: Two-way audio in Apple Home (homebridge-unifi-protect) / Audio nei due sensi in Apple Casa (homebridge-unifi-protect)
+        - label: Home Assistant Unlock buttons opened the right doors / I pulsanti Unlock di Home Assistant hanno aperto le porte giuste
+        - label: Apple Home lock tiles opened the right doors / Le serrature in Apple Casa hanno aperto le porte giuste
   - type: textarea
     id: problems
     attributes:
-      label: What did not work or looked wrong?
+      label: What did not work or looked wrong? / Cosa non ha funzionato o sembrava sbagliato?
   - type: textarea
     id: logs
     attributes:
-      label: Router log
-      description: Lines starting with `LEARN:` are the most useful.
+      label: Router log / Log del router
+      description: Lines starting with `LEARN:` and the summary of watch_calls.py are the most useful. / Le righe che iniziano con `LEARN:` e il riepilogo di watch_calls.py sono le più utili.
       render: text
   - type: textarea
     id: notes
     attributes:
-      label: Anything else
-      description: Network setup, homebridge-unifi-protect version, screenshots...
+      label: Anything else / Altro
+      description: Network setup, homebridge-unifi-protect version, screenshots... / Rete, versione di homebridge-unifi-protect, schermate...

@@ -26,8 +26,11 @@ configuration:
   unlock:
     name: Apertura
     description: >-
-      Aggiunge il pulsante Apri in Home Assistant. door_id: vedi la
-      documentazione dell'add-on (--list-doors).
+      doors = una riga per porta, scritta Nome=door_id (per esempio
+      Portone=0ed545f8-...): ogni porta ha un pulsante ("Unlock Portone") e
+      una serratura per Apple Casa. La modalità apprendimento stampa le righe già
+      pronte. door_id = vecchia opzione a porta singola (lasciala vuota se usi
+      doors). relock_seconds = per quanti secondi la serratura risulta aperta.
   learn_mode:
     name: Modalità apprendimento
     description: >-

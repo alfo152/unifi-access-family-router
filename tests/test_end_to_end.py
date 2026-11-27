@@ -281,5 +281,100 @@ class ThreeFamilyBuildingTest(unittest.IsolatedAsyncioTestCase):
         await broker.stop()
 
 
+DOOR_2 = "a8f2c6d1-3b4e-4f5a-9c7d-1e2f3a4b5c6d"
+UNKNOWN_DOOR = "ffffffff-0000-4000-8000-000000000000"
+
+
+@unittest.skipUnless(HAVE_NODE_WS and HAVE_OPENSSL, "node 'ws' module or openssl not available")
+class MultipleDoorsTest(unittest.IsolatedAsyncioTestCase):
+    """One family with three doors, against the console double and a real broker."""
+
+    async def asyncSetUp(self) -> None:
+        from .ws_fake import NodeAccessServer
+
+        self.cert = SelfSignedCert()
+        self.console = NodeAccessServer(self.cert, {"tok-d": SCOPES["tok-a"]})
+        await self.console.start()
+        self.broker = TestBroker(users={"router-d": "pw"})
+        await self.broker.start()
+        # entities left behind by an older configuration (a renamed door)
+        node = "homeassistant/{}/access_family_router_family_d/{}/config"
+        self.stale = [node.format("button", "unlock_old_gate"), node.format("lock", "lock_old_gate")]
+        for stale in self.stale:
+            await self.broker.inject(stale, b'{"name":"Old gate"}', qos=1, retain=True)
+        raw: dict[str, Any] = {
+            "access": {"host": "127.0.0.1", "port": self.console.port, "token": "tok-d",
+                       "tls_fingerprint": self.cert.fingerprint},
+            "family": {"name": "Famiglia D", "id": "family_d", "match": {"room_ids": [ROOM_A]}},
+            "mqtt": {"host": "127.0.0.1", "port": self.broker.port,
+                     "username": "router-d", "password": "pw", "keepalive": 5},
+            "unlock": {"enabled": True, "cooldown_seconds": 0, "relock_seconds": 1, "doors": [
+                f"Portone={DOOR_ID}",
+                {"name": "Cancello", "door_id": DOOR_2},
+                f"Garage={UNKNOWN_DOOR}",
+            ]},
+        }
+        self.service = Service(parse_config(raw, env={}), mqtt_initial_backoff=0.2)
+        self.task = asyncio.create_task(self.service.run())
+        await asyncio.wait_for(self.service.mqtt_connected.wait(), 10)
+
+    async def asyncTearDown(self) -> None:
+        self.task.cancel()
+        await asyncio.gather(self.task, return_exceptions=True)
+        await self.console.stop()
+        await self.broker.stop()
+        self.cert.cleanup()
+
+    def puts(self) -> list[str]:
+        return [e["path"] for e in self.console.events if e["event"] == "http" and e["method"] == "PUT"]
+
+    def state(self, key: str) -> str | None:
+        retained = self.broker.retained.get(topic("d", f"unlock/{key}/state"))
+        return retained[0].decode() if retained else None
+
+    def results(self, key: str) -> list[dict[str, Any]]:
+        return [json.loads(m.payload) for m in self.broker.messages(topic("d", f"unlock/{key}/result"))]
+
+    async def test_three_doors(self) -> None:
+        b = self.broker
+        # stale entities removed, one button + one lock per door, all locked
+        await b.wait_for(lambda: not any(s in b.retained for s in self.stale), timeout=5)
+        for key in ("portone", "cancello", "garage"):
+            self.assertIn(f"homeassistant/button/access_family_router_family_d/unlock_{key}/config",
+                          b.retained)
+            self.assertIn(f"homeassistant/lock/access_family_router_family_d/lock_{key}/config",
+                          b.retained)
+            self.assertEqual(self.state(key), "LOCKED")
+
+        # Portone: opens its own door, shows unlocked, then locked again
+        await b.inject(topic("d", "unlock/portone/set"), b"PRESS", qos=1)
+        await b.wait_for(lambda: self.state("portone") == "UNLOCKED", timeout=5)
+        self.assertEqual(self.puts(), [f"/api/v1/developer/doors/{DOOR_ID}/unlock"])
+        self.assertTrue(self.results("portone")[-1]["ok"])
+        await b.wait_for(lambda: self.state("portone") == "LOCKED", timeout=5)
+
+        # Cancello right after, through the lock entity's UNLOCK payload
+        await b.inject(topic("d", "unlock/cancello/set"), b"UNLOCK", qos=1)
+        await b.wait_for(lambda: len(self.results("cancello")) == 1, timeout=5)
+        self.assertEqual(self.puts()[-1], f"/api/v1/developer/doors/{DOOR_2}/unlock")
+        self.assertEqual(self.results("cancello")[-1]["door"], "Cancello")
+
+        # Garage: the console does not know the door -> error and "jammed"
+        await b.inject(topic("d", "unlock/garage/set"), b"PRESS", qos=1)
+        await b.wait_for(lambda: self.state("garage") == "JAMMED", timeout=5)
+        result = self.results("garage")[-1]
+        self.assertFalse(result["ok"])
+        self.assertIn("NOT_FOUND", result["error"])
+        await b.wait_for(lambda: self.state("garage") == "LOCKED", timeout=5)
+
+        # LOCK and the single-door topic never reach the console
+        before = len(self.puts())
+        await b.inject(topic("d", "unlock/portone/set"), b"LOCK", qos=1)
+        await b.inject(topic("d", "unlock/set"), b"PRESS", qos=1)
+        await asyncio.sleep(0.4)
+        self.assertEqual(len(self.puts()), before)
+        self.assertEqual(self.puts().count(f"/api/v1/developer/doors/{UNKNOWN_DOOR}/unlock"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

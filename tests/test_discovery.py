@@ -63,6 +63,55 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(learn["entity_category"], "diagnostic")
         self.assertEqual(learn["value_template"], "{{ value_json.room_id }}")
 
+    def test_single_door_lock_entity(self) -> None:
+        cfg = make_config(unlock={"enabled": True, "door_id": "d1"})
+        data = self.payloads(cfg)
+        lock = data["homeassistant/lock/access_family_router_family_a/lock/config"]
+        assert lock is not None
+        self.assertEqual(lock["name"], "Door")
+        self.assertEqual(lock["command_topic"], "access_family_router/family_a/unlock/set")
+        self.assertEqual(lock["state_topic"], "access_family_router/family_a/unlock/state")
+        self.assertEqual((lock["payload_unlock"], lock["payload_lock"]), ("UNLOCK", "LOCK"))
+        self.assertEqual(
+            (lock["state_locked"], lock["state_unlocked"], lock["state_jammed"]),
+            ("LOCKED", "UNLOCKED", "JAMMED"),
+        )
+        self.assertFalse(lock["optimistic"])
+
+    def test_multiple_doors(self) -> None:
+        cfg = make_config(unlock={"enabled": True, "doors": [
+            "Portone=door-1", {"name": "Cancello carrabile", "door_id": "door-2"}]})
+        data = self.payloads(cfg)
+        node = "access_family_router_family_a"
+        base = "access_family_router/family_a/unlock"
+        for key, name in (("portone", "Portone"), ("cancello_carrabile", "Cancello carrabile")):
+            button = data[f"homeassistant/button/{node}/unlock_{key}/config"]
+            lock = data[f"homeassistant/lock/{node}/lock_{key}/config"]
+            assert button is not None and lock is not None
+            self.assertEqual(button["name"], f"Unlock {name}")
+            self.assertEqual(button["command_topic"], f"{base}/{key}/set")
+            self.assertEqual(button["unique_id"], f"{node}_unlock_{key}")
+            self.assertEqual(lock["name"], name)
+            self.assertEqual(lock["command_topic"], f"{base}/{key}/set")
+            self.assertEqual(lock["state_topic"], f"{base}/{key}/state")
+        # the single-door entities are removed
+        self.assertIsNone(data[f"homeassistant/button/{node}/unlock/config"])
+        self.assertIsNone(data[f"homeassistant/lock/{node}/lock/config"])
+        unique_ids = [p["unique_id"] for p in data.values() if p]
+        self.assertEqual(len(unique_ids), len(set(unique_ids)))
+
+    def test_doors_ignored_when_unlock_disabled(self) -> None:
+        cfg = make_config(unlock={"enabled": False, "doors": ["Portone=door-1"]})
+        data = self.payloads(cfg)
+        self.assertFalse(any(topic.endswith("unlock_portone/config") for topic in data))
+        self.assertIsNone(data["homeassistant/lock/access_family_router_family_a/lock/config"])
+
+    def test_discovery_filter(self) -> None:
+        from family_router.discovery import discovery_filter
+
+        cfg = make_config(mqtt={"discovery_prefix": "ha/disc"})
+        self.assertEqual(discovery_filter(cfg), "ha/disc/+/access_family_router_family_a/+/config")
+
     def test_custom_prefix_and_disabled(self) -> None:
         cfg = make_config(mqtt={"discovery_prefix": "ha", "base_topic": "intercom"})
         topics = Topics(cfg)

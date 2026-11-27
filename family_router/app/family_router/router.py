@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
-from .config import Config
+from .config import Config, DoorConfig
 from .events import CallEnded, RingEvent
 
 __all__ = ["FamilyRouter", "Publish", "Topics", "RESULT_EVENT_TYPES"]
@@ -57,12 +57,30 @@ class Topics:
         self.call = f"{base}/call"
         self.result = f"{base}/call_result"
         self.learn = f"{base}/learn"
+        # topics of the single door configured with 'unlock.door_id'
         self.unlock_command = f"{base}/unlock/set"
         self.unlock_result = f"{base}/unlock/result"
+        self.unlock_state = f"{base}/unlock/state"
         hb = config.homebridge
         self.homebridge_doorbell = (
             f"{hb.topic_prefix}/{hb.camera_mac}/doorbell/set" if hb.enabled else ""
         )
+
+    def _door(self, door: DoorConfig) -> str:
+        return f"{self.base}/unlock/{door.key}" if door.key else f"{self.base}/unlock"
+
+    def door_command(self, door: DoorConfig) -> str:
+        """``PRESS``/``UNLOCK`` opens the door, ``LOCK`` only refreshes the state."""
+
+        return f"{self._door(door)}/set"
+
+    def door_result(self, door: DoorConfig) -> str:
+        return f"{self._door(door)}/result"
+
+    def door_state(self, door: DoorConfig) -> str:
+        """``LOCKED`` / ``UNLOCKED`` / ``JAMMED`` for the Home Assistant lock entity."""
+
+        return f"{self._door(door)}/state"
 
 
 def _json(data: Mapping[str, object]) -> str:

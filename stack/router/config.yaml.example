@@ -1,6 +1,9 @@
-# Router configuration for the per-family Docker stack (stack/docker-compose.yml).
-# Copy to config.yaml and fill in the values. See ../../config.example.yaml for
-# every option.
+# EN: router configuration for the per-family Docker stack
+#     (stack/docker-compose.yml). Copy to config.yaml and fill in the values.
+#     Every option, explained: ../../config.example.yaml
+# IT: configurazione del router per il pacchetto Docker della famiglia
+#     (stack/docker-compose.yml). Copia in config.yaml e compila i valori.
+#     Tutte le opzioni, spiegate: ../../config.example.yaml
 
 access:
   host: 192.168.50.1
@@ -15,7 +18,7 @@ family:
       - "WR-PASTE-FROM-LEARN-MODE"
 
 mqtt:
-  host: mosquitto          # service name inside the stack
+  host: mosquitto          # EN: service name in the stack / IT: nome del servizio nel pacchetto
   port: 1883
   username: router
   password: "change-me"
@@ -27,7 +30,8 @@ homebridge:
 
 unlock:
   enabled: false
-  door_id: ""
+  # EN/IT: e.g. / es. ["Portone=<door_id>", "Cancello=<door_id>"] (--list-doors)
+  doors: []
 
 learn_mode: false
 log_level: info

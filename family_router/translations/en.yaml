@@ -26,8 +26,11 @@ configuration:
   unlock:
     name: Unlock
     description: >-
-      Adds an Unlock button in Home Assistant. door_id: see the add-on
-      documentation (--list-doors).
+      doors = one line per door, written as Name=door_id (for example
+      Portone=0ed545f8-...): each door gets a button ("Unlock Portone") and a
+      lock for Apple Home. Learn mode prints ready-made lines. door_id = old
+      single-door option (leave empty when using doors). relock_seconds =
+      how long the lock shows "unlocked".
   learn_mode:
     name: Learn mode
     description: >-

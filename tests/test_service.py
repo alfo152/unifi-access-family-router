@@ -12,6 +12,10 @@ from family_router.service import STALE_RING_SECONDS, Service
 
 from .support import MAC, ROOM_A, ROOM_B, end_message, make_config, ring_message
 
+DISCOVERY_FILTER = "homeassistant/+/access_family_router_family_a/+/config"
+DOORS = ["Portone=door-portone", {"name": "Cancello carrabile", "door_id": "door-cancello"}]
+BASE = "access_family_router/family_a"
+
 
 class FakeClock:
     def __init__(self) -> None:
@@ -141,12 +145,21 @@ class ServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(mqtt.will, Will("access_family_router/family_a/status", b"offline", 1, True))
         self.assertEqual(mqtt.published[0], ("access_family_router/family_a/status", "online", 1, True))
         discovery = [t for t in mqtt.topics() if t.startswith("homeassistant/")]
-        self.assertEqual(len(discovery), 5)
+        # doorbell, call result, call active, learn (removed), button, lock
+        self.assertEqual(len(discovery), 6)
         self.assertIn(("access_family_router/family_a/call", "OFF", 1, True), mqtt.published)
-        self.assertEqual(mqtt.subscriptions, ["access_family_router/family_a/unlock/set"])
+        self.assertIn(("access_family_router/family_a/unlock/state", "LOCKED", 1, True), mqtt.published)
+        self.assertEqual(
+            mqtt.subscriptions,
+            ["access_family_router/family_a/unlock/set", DISCOVERY_FILTER],
+        )
 
     async def test_no_subscription_without_unlock(self) -> None:
         await self.start()
+        self.assertEqual(FakeMqtt.instances[0].subscriptions, [DISCOVERY_FILTER])
+
+    async def test_no_cleanup_subscription_without_discovery(self) -> None:
+        await self.start(mqtt={"discovery": False})
         self.assertEqual(FakeMqtt.instances[0].subscriptions, [])
 
     async def test_ring_routing(self) -> None:
@@ -197,6 +210,95 @@ class ServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result["ok"])
         self.assertIn("403", result["error"])
         self.assertTrue(service.mqtt_connected.is_set())
+
+    def results(self, mqtt: "FakeMqtt", key: str) -> list[dict[str, Any]]:
+        return [json.loads(p[1]) for p in mqtt.published if p[0] == f"{BASE}/unlock/{key}/result"]
+
+    def states(self, mqtt: "FakeMqtt", key: str) -> list[str]:
+        return [p[1] for p in mqtt.published if p[0] == f"{BASE}/unlock/{key}/state"]
+
+    async def test_multiple_doors(self) -> None:
+        await self.start(unlock={"enabled": True, "doors": DOORS, "relock_seconds": 1})
+        mqtt = FakeMqtt.instances[0]
+        portone = f"{BASE}/unlock/portone/set"
+        cancello = f"{BASE}/unlock/cancello_carrabile/set"
+        self.assertEqual(mqtt.subscriptions, [portone, cancello, DISCOVERY_FILTER])
+        self.assertEqual(self.states(mqtt, "portone"), ["LOCKED"])
+        self.assertEqual(self.states(mqtt, "cancello_carrabile"), ["LOCKED"])
+        # the single-door topic of 'unlock.door_id' is not listened to
+        mqtt.incoming.put_nowait(Message(f"{BASE}/unlock/set", b"PRESS", 1, False))
+
+        # each door opens its own door_id, the two cooldowns are independent
+        mqtt.incoming.put_nowait(Message(portone, b"PRESS", 1, False))
+        mqtt.incoming.put_nowait(Message(cancello, b"UNLOCK", 1, False))
+        await until(lambda: len(self.access.unlocks) == 2)
+        self.assertEqual([u[0] for u in self.access.unlocks], ["door-portone", "door-cancello"])
+        await until(lambda: len(self.results(mqtt, "cancello_carrabile")) == 1)
+        self.assertEqual(self.results(mqtt, "portone")[0]["door"], "Portone")
+        self.assertTrue(self.results(mqtt, "portone")[0]["ok"])
+        self.assertEqual(self.results(mqtt, "cancello_carrabile")[0]["door"], "Cancello carrabile")
+
+        # the lock entity shows "unlocked", then "locked" again after relock_seconds
+        await until(lambda: self.states(mqtt, "portone") == ["LOCKED", "UNLOCKED"])
+        await until(lambda: self.states(mqtt, "portone") == ["LOCKED", "UNLOCKED", "LOCKED"], 3)
+        self.assertTrue(all(p[3] for p in mqtt.published if p[0].endswith("/state")))
+
+        # a second press on the same door within the cooldown is ignored
+        mqtt.incoming.put_nowait(Message(portone, b"PRESS", 1, False))
+        await asyncio.sleep(0.05)
+        self.assertEqual(len(self.access.unlocks), 2)
+
+        # "LOCK" (Home Assistant lock entity) never calls the API
+        mqtt.incoming.put_nowait(Message(cancello, b"LOCK", 1, False))
+        await until(lambda: self.states(mqtt, "cancello_carrabile")[-1] == "LOCKED")
+        self.assertEqual(len(self.access.unlocks), 2)
+
+    async def test_failed_unlock_shows_jammed(self) -> None:
+        await self.start(unlock={"enabled": True, "doors": DOORS, "relock_seconds": 1})
+        mqtt = FakeMqtt.instances[0]
+        self.access.unlock_error = RuntimeError("CODE_DEVICE_NOT_FOUND")
+        mqtt.incoming.put_nowait(Message(f"{BASE}/unlock/portone/set", b"PRESS", 1, False))
+        await until(lambda: self.states(mqtt, "portone")[-1:] == ["JAMMED"])
+        self.assertFalse(self.results(mqtt, "portone")[0]["ok"])
+        self.assertIn("NOT_FOUND", self.results(mqtt, "portone")[0]["error"])
+        await until(lambda: self.states(mqtt, "portone")[-1] == "LOCKED", 3)
+
+    async def test_retained_door_command_is_cleared(self) -> None:
+        await self.start(unlock={"enabled": True, "doors": DOORS})
+        mqtt = FakeMqtt.instances[0]
+        topic = f"{BASE}/unlock/portone/set"
+        mqtt.incoming.put_nowait(Message(topic, b"PRESS", 1, True))
+        await until(lambda: (topic, "", 1, True) in mqtt.published)
+        self.assertEqual(self.access.unlocks, [])
+
+    async def test_stale_entities_are_removed(self) -> None:
+        await self.start(unlock={"enabled": True, "doors": DOORS})
+        mqtt = FakeMqtt.instances[0]
+        node = "homeassistant/{}/access_family_router_family_a/{}/config"
+        stale_button = node.format("button", "unlock_garage")
+        stale_lock = node.format("lock", "lock_garage")
+        current = node.format("button", "unlock_portone")
+        other_family = "homeassistant/button/access_family_router_family_b/unlock_garage/config"
+        for topic in (stale_button, stale_lock, current, other_family):
+            mqtt.incoming.put_nowait(Message(topic, b'{"name":"x"}', 1, True))
+        mqtt.incoming.put_nowait(Message(node.format("button", "unlock_old"), b"", 1, True))
+        await until(lambda: (stale_lock, "", 1, True) in mqtt.published)
+        self.assertIn((stale_button, "", 1, True), mqtt.published)
+        removed = [p[0] for p in mqtt.published[-10:] if p[1] == "" and p[0].startswith("homeassistant/")]
+        self.assertNotIn(current, removed)
+        self.assertNotIn(other_family, removed)
+        self.assertEqual(len(self.access.unlocks), 0)
+
+    async def test_stale_cleanup_with_nested_prefix(self) -> None:
+        await self.start(mqtt={"discovery_prefix": "ha/disc"}, unlock={"enabled": True, "doors": DOORS})
+        mqtt = FakeMqtt.instances[0]
+        self.assertIn("ha/disc/+/access_family_router_family_a/+/config", mqtt.subscriptions)
+        stale = "ha/disc/button/access_family_router_family_a/unlock_garage/config"
+        wrong_depth = "ha/button/access_family_router_family_a/unlock_garage/config"
+        mqtt.incoming.put_nowait(Message(wrong_depth, b"{}", 1, True))
+        mqtt.incoming.put_nowait(Message(stale, b"{}", 1, True))
+        await until(lambda: (stale, "", 1, True) in mqtt.published)
+        self.assertNotIn((wrong_depth, "", 1, True), mqtt.published)
 
     async def test_reconnect_and_queue(self) -> None:
         service = await self.start()

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -17,6 +18,7 @@ __all__ = [
     "AccessConfig",
     "Config",
     "ConfigError",
+    "DoorConfig",
     "FamilyConfig",
     "HomebridgeConfig",
     "MatchConfig",
@@ -30,6 +32,7 @@ _SLUG_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 _HEX_RE = re.compile(r"^[0-9A-F]+$")
 _TOPIC_FORBIDDEN = ("+", "#", "\x00")
 _LOG_LEVELS = ("debug", "info", "warning", "error")
+_MAX_DOORS = 10
 
 
 class ConfigError(ValueError):
@@ -92,11 +95,32 @@ class HomebridgeConfig:
 
 
 @dataclass(frozen=True)
+class DoorConfig:
+    """A door this family may unlock from Home Assistant / Apple Home.
+
+    ``key`` is the slug used in MQTT topics and entity IDs. The empty key is
+    the single door of the original ``unlock.door_id`` option, which keeps
+    its original topics (``<base>/unlock/set``) and entity (``Unlock``).
+    """
+
+    key: str
+    name: str
+    door_id: str
+
+
+@dataclass(frozen=True)
 class UnlockConfig:
     enabled: bool = False
-    door_id: str = ""
+    doors: tuple[DoorConfig, ...] = ()
     actor_name: str = ""
     cooldown_seconds: float = 3.0
+    relock_seconds: float = 5.0
+
+    @property
+    def door_id(self) -> str:
+        """The first door ID (kept for the single-door configuration)."""
+
+        return self.doors[0].door_id if self.doors else ""
 
 
 @dataclass(frozen=True)
@@ -209,8 +233,62 @@ def _str_list(section: Mapping[str, Any], key: str, where: str) -> tuple[str, ..
 
 
 def _slugify(text: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")
-    return slug[:40]
+    # "Città" -> "citta": fold accents before dropping other characters
+    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "_", folded.lower()).strip("_")
+    return slug[:40].rstrip("_")
+
+
+def _parse_doors(value: Any) -> tuple[DoorConfig, ...]:
+    """Parse ``unlock.doors``.
+
+    Each item is either a mapping ``{name, door_id, id?}`` (YAML/JSON) or a
+    string ``"Name=door_id"`` (Home Assistant add-on options, which only
+    offer a list of strings at this depth).
+    """
+
+    if value is None or value == "":
+        return ()
+    if not isinstance(value, (list, tuple)):
+        raise ConfigError("'unlock.doors' must be a list")
+    doors: list[DoorConfig] = []
+    for index, item in enumerate(value, start=1):
+        where = f"unlock.doors[{index}]"
+        if isinstance(item, str):
+            if not item.strip():
+                continue
+            if "=" not in item:
+                raise ConfigError(
+                    f"'{where}' must look like \"Name=door_id\" (got {item.strip()[:60]!r})"
+                )
+            name, door_id = (part.strip() for part in item.rsplit("=", 1))
+            key = ""
+        elif isinstance(item, Mapping):
+            name = _str(item, "name", where)
+            door_id = _str(item, "door_id", where)
+            key = _str(item, "id", where)
+        else:
+            raise ConfigError(f"'{where}' must be \"Name=door_id\" or a mapping")
+        if not name:
+            raise ConfigError(f"'{where}' needs a name")
+        if not door_id:
+            raise ConfigError(f"'{where}' ({name}) needs a door_id")
+        if any(ch.isspace() for ch in door_id) or "/" in door_id:
+            raise ConfigError(f"'{where}' ({name}): invalid door_id {door_id[:60]!r}")
+        key = key or _slugify(name)
+        if not key or not _SLUG_RE.match(key):
+            raise ConfigError(
+                f"'{where}' ({name}): the name must contain letters or digits "
+                "(or set an 'id' made of a-z, 0-9 and '_')"
+            )
+        if any(d.key == key for d in doors):
+            raise ConfigError(f"two doors share the name/id '{key}' in 'unlock.doors'")
+        if any(d.door_id == door_id for d in doors):
+            raise ConfigError(f"door_id {door_id[:60]!r} is listed twice in 'unlock.doors'")
+        doors.append(DoorConfig(key=key, name=name, door_id=door_id))
+    if len(doors) > _MAX_DOORS:
+        raise ConfigError(f"'unlock.doors' supports at most {_MAX_DOORS} doors")
+    return tuple(doors)
 
 
 def _check_topic(value: str, where: str) -> str:
@@ -379,16 +457,31 @@ def parse_config(
 
     # unlock ---------------------------------------------------------------
     u = _section(raw, "unlock")
+    unlock_enabled = _bool(u, "enabled", "unlock", False)
+    doors: tuple[DoorConfig, ...] = ()
+    if unlock_enabled:
+        # Doors are only read when unlock is on, so a half-filled door list
+        # never blocks the router while unlock is off.
+        single_door = _str(u, "door_id", "unlock")
+        doors = _parse_doors(u.get("doors"))
+        if single_door and doors:
+            raise ConfigError(
+                "use either 'unlock.door_id' (one door) or 'unlock.doors' (one or more), "
+                "not both"
+            )
+        if single_door:
+            doors = (DoorConfig(key="", name="", door_id=single_door),)
     unlock = UnlockConfig(
-        enabled=_bool(u, "enabled", "unlock", False),
-        door_id=_str(u, "door_id", "unlock"),
+        enabled=unlock_enabled,
+        doors=doors,
         actor_name=_str(u, "actor_name", "unlock") or f"{name} (family router)",
         cooldown_seconds=_float(u, "cooldown_seconds", "unlock", 3.0, 0.0, 60.0),
+        relock_seconds=_float(u, "relock_seconds", "unlock", 5.0, 1.0, 60.0),
     )
-    if unlock.enabled and not unlock.door_id:
+    if unlock.enabled and not unlock.doors:
         raise ConfigError(
-            "'unlock.door_id' is required when unlock is enabled "
-            "(run 'python -m family_router --list-doors' to find it)"
+            "'unlock.doors' (or 'unlock.door_id') is required when unlock is enabled "
+            "(learn mode or 'python -m family_router --list-doors' shows the door IDs)"
         )
 
     return Config(

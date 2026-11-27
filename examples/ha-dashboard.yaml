@@ -1,5 +1,10 @@
-# Lovelace card: live view while this family is being called, Unlock button.
-# Replace the entity IDs with yours (Settings > Devices & services > MQTT).
+# EN: Lovelace card: live view while THIS family is being called, one button
+#     per door (router option unlock.doors). Replace the entity IDs with yours
+#     (Settings > Devices & services > MQTT > Intercom - <family name>).
+# IT: scheda Lovelace: video dal vivo mentre chiamano QUESTA famiglia, un
+#     pulsante per porta (opzione unlock.doors del router). Sostituisci gli ID
+#     con i tuoi (Impostazioni > Dispositivi e servizi > MQTT >
+#     Intercom - <nome famiglia>).
 type: vertical-stack
 cards:
   - type: conditional
@@ -12,14 +17,29 @@ cards:
       entity: camera.g3_intercom_high
       camera_view: live
       name: Suonano al portone
-  - type: button
-    entity: button.intercom_famiglia_rossi_unlock
-    name: Apri portone
-    icon: mdi:door-open
-    tap_action:
-      action: perform-action
-      perform_action: button.press
-      target:
-        entity_id: button.intercom_famiglia_rossi_unlock
-      confirmation:
-        text: Aprire il portone?
+  - type: horizontal-stack
+    cards:
+      - type: button
+        entity: button.intercom_famiglia_rossi_unlock_portone
+        name: Apri portone
+        icon: mdi:door-open
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.intercom_famiglia_rossi_unlock_portone
+          confirmation:
+            text: Aprire il portone?
+      # EN: second door; delete this card if you have only one door.
+      # IT: seconda porta; cancella questa scheda se hai una sola porta.
+      - type: button
+        entity: button.intercom_famiglia_rossi_unlock_cancello
+        name: Apri cancello
+        icon: mdi:gate-open
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.intercom_famiglia_rossi_unlock_cancello
+          confirmation:
+            text: Aprire il cancello?

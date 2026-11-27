@@ -29,6 +29,16 @@ const DOORS = [
     name: "Portone",
     type: "door",
   },
+  {
+    door_lock_relay_status: "lock",
+    door_position_status: "close",
+    floor_id: "23c5db06-b59b-494d-94f1-23e88fbe4909",
+    full_name: "UCG-Max - GF - Cancello",
+    id: "a8f2c6d1-3b4e-4f5a-9c7d-1e2f3a4b5c6d",
+    is_bind_hub: true,
+    name: "Cancello",
+    type: "door",
+  },
 ];
 const NOTIFY_PATH = "/api/v1/developer/devices/notifications";
 

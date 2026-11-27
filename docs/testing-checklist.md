@@ -1,5 +1,7 @@
 # Test checklist on the real installation
 
+🇮🇹 [Leggi in italiano](it/testing-checklist.md)
+
 Run it once after installing, with someone at the intercom. Tick every line
 for **each** family.
 
@@ -31,13 +33,18 @@ the call receivers) and report it in an issue.
 ## Apple Home
 
 - [ ] Only your family's calls ring the HomeKit Bridge camera
-      ([homekit.md](homekit.md)); the muted HBUP tile never rings.
+      ([homekit-bridge.md](homekit-bridge.md)); the muted HBUP tile never
+      rings.
 - [ ] Talk: the visitor hears you (you will hear your own echo).
-- [ ] Unlock from the intercom tile opens the door.
+- [ ] Each lock tile asks for Face ID / Touch ID and opens its own door; it
+      shows *unlocked*, then *locked* after `relock_seconds`.
 
 ## Home Assistant
 
-- [ ] Unlock button opens the door; the Access log shows the family name.
+- [ ] Each *Unlock* button opens its own door (and only that one); the
+      Access log shows the family name.
+- [ ] A wrong `door_id` shows the lock as *jammed* and the router log
+      explains the error.
 - [ ] Phone notification with *Apri* works from outside home (Companion app).
 
 ## Resilience

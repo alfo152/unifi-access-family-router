@@ -1,5 +1,7 @@
 # UniFi Access Family Router
 
+🇮🇹 [Leggi in italiano](LEGGIMI.md)
+
 **One UniFi G3 Intercom, several families, each with its own Home Assistant
 and its own Apple Home: only the family the visitor called gets the ring.**
 
@@ -8,24 +10,24 @@ smart-home integrations only learn that "someone rang". This project listens
 to the **official UniFi Access API**, reads which directory entry was called
 (`room_id`) and rings **only that family**:
 
-- 🍎 **Apple Home**, through [homebridge-unifi-protect](https://github.com/hjdhjd/homebridge-unifi-protect)
-  (live video and two-way audio come from that plugin)
+- 🍎 **Apple Home**: doorbell with snapshot and live video plus one lock
+  tile per door through the Home Assistant HomeKit Bridge
+  ([ready-to-copy package](examples/packages/intercom_family.yaml)); talking
+  through [homebridge-unifi-protect](https://github.com/hjdhjd/homebridge-unifi-protect)
 - 🏠 **Home Assistant**, through MQTT discovery (doorbell event, call state,
-  unlock button)
+  one unlock button and one lock per door: *Portone*, *Cancello*, *Garage*…)
 
 Every family runs its **own copy**, with its own API token, its own MQTT
 broker, its own Homebridge and its own Home Assistant. Nothing is shared
 except the intercom and the UniFi console in the stairwell.
 
-> **Status:** 0.1.1. Verified with an automated test suite built on the
+> **Status:** 0.2.0. Verified with an automated test suite built on the
 > official UniFi Access API reference (v4.2.16) and a simulated 3-family
 > building. Not yet confirmed on real G3 Intercom hardware: see
 > [Known limitations](#known-limitations) and run the
 > [test checklist](docs/testing-checklist.md) on your installation.
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with this repository pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Falfo152%2Funifi-access-family-router)
-
-Italian step-by-step guide: [LEGGIMI.md](LEGGIMI.md).
 
 ## 🧪 Testers wanted
 
@@ -70,10 +72,12 @@ reaches the console. It only listens.
   ┌───────────────────────────────────────┐   ┌──────────────────────────────────────┐
   │ G3 Intercom ── directory: A / B / C   │   │ family-router (token A)              │
   │      │                                │   │   room_id == A ? ──► MQTT broker A   │
-  │ UniFi console (Access + Protect) ─────┼──►│                       │    │         │
-  │   WebSocket access.remote_view        │   │   Homebridge A ◄──────┘    └► HA A   │
-  │   { room_id: "WR-…A…", request_id }   │   │   (Apple Home A: ring,       (event, │
-  │                                       │   │    video, 2-way audio)       unlock) │
+  │ UniFi console (Access + Protect) ─────┼──►│                          │           │
+  │   WebSocket access.remote_view        │   │   Home Assistant A ◄─────┘           │
+  │   { room_id: "WR-…A…", request_id }   │   │   (doorbell event, doors)            │
+  │                                       │   │    └─► HomeKit Bridge ─► Apple Home A│
+  │                                       │   │        (ring, video, lock tiles)     │
+  │                                       │   │   Homebridge A ─► Apple Home A (talk)│
   └───────────────────────────────────────┘   └──────────────────────────────────────┘
                                          (same for family B and family C)
 ```
@@ -83,14 +87,18 @@ reaches the console. It only listens.
    contains the `room_id` of the called entry (the webhook variant does not).
 3. Each family's router compares the `room_id` with its own configuration.
    Only the matching router reacts:
-   - publishes `true` on `unifi/protect/<G3 MAC>/doorbell/set`: Homebridge
-     rings that family's Apple Home (notification with live video, talk);
    - fires the **Doorbell** event entity and turns **Call active** on in that
-     family's Home Assistant.
+     family's Home Assistant; the Home Assistant HomeKit Bridge rings that
+     family's Apple Home (notification with snapshot, live video);
+   - optionally publishes `true` on `unifi/protect/<G3 MAC>/doorbell/set` for
+     homebridge-unifi-protect (useful once
+     [HBUP#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363)
+     is available, see [Known limitations](#known-limitations)).
 4. When the call ends (answered, unlocked, canceled, timeout) Home Assistant
    receives a **Call result** event and **Call active** turns off.
-5. **Unlock**: the Home Assistant button calls the official unlock endpoint;
-   the Access log shows which family opened the door.
+5. **Unlock**: each door has a Home Assistant button and a lock (the lock is
+   what Apple Home shows, with Face ID). Both call the official unlock
+   endpoint; the Access log shows which family opened the door.
 
 ## Features
 
@@ -99,9 +107,14 @@ reaches the console. It only listens.
 - **Learn mode** to discover the `room_id` of each directory entry.
 - Home Assistant MQTT discovery: `event` Doorbell (`device_class: doorbell`,
   usable as HomeKit `linked_doorbell_sensor`), `event` Call result,
-  `binary_sensor` Call active, `button` Unlock, diagnostic learn sensor.
-- Unlock with per-family actor name, cooldown, retained commands ignored and
-  cleared (they would otherwise open the door at every reconnect).
+  `binary_sensor` Call active, diagnostic learn sensor.
+- **Several doors per family** (up to 10): one `button` and one `lock` each.
+  The lock shows *unlocked* after opening, *locked* again after a few
+  seconds, *jammed* if the console refused. Entities of removed doors are
+  cleaned up automatically.
+- Unlock with per-family actor name, per-door cooldown, retained commands
+  ignored and cleared (they would otherwise open the door at every
+  reconnect).
 - **TLS pinning** of the console certificate (SHA-256 fingerprint).
 - Automatic reconnection of the Access WebSocket (with heartbeat) and of MQTT,
   independent of each other. Rings queued during an MQTT outage are dropped
@@ -118,7 +131,8 @@ reaches the console. It only listens.
 | **G3 Intercom** + door hub (e.g. Door Hub Mini) | Directory with one entry per family |
 | Per family: a small always-on computer | Runs HA OS (add-on) or Docker (stack) |
 | Per family: MQTT broker | Mosquitto add-on or the stack's Mosquitto |
-| Per family: Homebridge + homebridge-unifi-protect ≥ 8.0 | For Apple Home (requires Homebridge 2.0) |
+| Per family: Home Assistant HomeKit Bridge | Apple Home ring and lock tiles ([guide](docs/homekit-bridge.md)) |
+| Per family: Homebridge + homebridge-unifi-protect ≥ 8.0 | Talking from Apple Home (requires Homebridge 2.0) |
 | Network | Each family reaches the console on TCP 12445 (Access API) and the ports used by Protect |
 
 ## Quick start
@@ -143,10 +157,15 @@ reaches the console. It only listens.
    once from the intercom, copy *your* family's `room_id` from the log (or the
    *Last ring room_id* sensor) into `family.match.room_ids`, then set
    `learn_mode: false`.
-5. **Apple Home**: [docs/homekit.md](docs/homekit.md)
-6. **Home Assistant** (dashboard, notification with Unlock):
+5. **Doors** (optional): learn mode also prints one ready line per door,
+   e.g. `unlock.doors "Portone=0ed545f8-…"`; set `unlock.enabled: true`
+   and list your doors ([details](docs/home-assistant.md#3-doors)).
+6. **Apple Home**: [docs/homekit-bridge.md](docs/homekit-bridge.md) (ring
+   and locks, ready-to-copy package) and [docs/homekit.md](docs/homekit.md)
+   (talking)
+7. **Home Assistant** (dashboard, notification with Unlock):
    [docs/home-assistant.md](docs/home-assistant.md)
-7. **Run the checklist**: [docs/testing-checklist.md](docs/testing-checklist.md)
+8. **Run the checklist**: [docs/testing-checklist.md](docs/testing-checklist.md)
 
 **Command line.** From a clone of the repository run `pip install .` once:
 then `family-router …` is the same as `python -m family_router …`
@@ -187,10 +206,12 @@ the same options (match rules directly under `family`).
 | `homebridge.enabled` | `false` | Trigger the homebridge-unifi-protect doorbell |
 | `homebridge.topic_prefix` | `unifi/protect` | = `mqttTopic` of the plugin |
 | `homebridge.camera_mac` | – | MAC of the G3 Intercom in Protect (any format) |
-| `unlock.enabled` | `false` | Create the Unlock button |
-| `unlock.door_id` | – | From `--list-doors` |
+| `unlock.enabled` | `false` | Create one Unlock button and one lock per door |
+| `unlock.doors` | `[]` | Doors to open: `{name, door_id}` items, or `"Name=door_id"` strings (add-on). IDs from learn mode or `--list-doors`; up to 10 |
+| `unlock.door_id` | – | Older single-door option (use either this or `unlock.doors`) |
 | `unlock.actor_name` | `<name> (family router)` | Name shown in the Access logs |
-| `unlock.cooldown_seconds` | `3` | Ignore repeated presses |
+| `unlock.cooldown_seconds` | `3` | Ignore repeated presses (per door) |
+| `unlock.relock_seconds` | `5` | Seconds the lock shows *unlocked* before *locked* again (1–60) |
 | `learn_mode` | `false` | Log/publish the IDs of every call |
 | `call_timeout_seconds` | `60` | Close a call that never received an end event |
 | `log_level` | `info` | `debug`, `info`, `warning`, `error` |
@@ -206,9 +227,15 @@ the same options (match rules directly under `family`).
 | `<base>/call` | out, retained | `ON` / `OFF` |
 | `<base>/call_result` | out | `{"event_type":"answered_elsewhere\|unlocked\|rejected\|canceled\|timeout\|expired\|unknown","reason_code","request_id"}` |
 | `<base>/learn` | out, retained | IDs of the last call (learn mode only) |
-| `<base>/unlock/set` | in | `PRESS` (or `UNLOCK`); retained messages are ignored |
-| `<base>/unlock/result` | out | `{"ok":true,"time":…}` or `{"ok":false,"error":…}` |
+| `<base>/unlock/<door>/set` | in | `PRESS` or `UNLOCK` opens; `LOCK` only refreshes the state; retained messages are ignored and cleared |
+| `<base>/unlock/<door>/state` | out, retained | `LOCKED` / `UNLOCKED` / `JAMMED` |
+| `<base>/unlock/<door>/result` | out | `{"ok":true,"door":"portone","time":…}` or `{"ok":false,"door":…,"error":…}` |
 | `<homebridge.topic_prefix>/<MAC>/doorbell/set` | out | `true` |
+
+`<door>` is the door name in lower case without accents (`Cancello
+carrabile` → `cancello_carrabile`). With the older `unlock.door_id` the door
+topics are `<base>/unlock/set`, `<base>/unlock/state` and
+`<base>/unlock/result`.
 
 ## Security
 
@@ -234,10 +261,13 @@ the same options (match rules directly under `family`).
   HomeKit for *every* intercom press, and its `Doorbell.Mute` switch also
   silences MQTT-triggered rings (checked in the 8.4.0 source). Per-family
   rings in Apple Home therefore go through the Home Assistant HomeKit Bridge
-  today, with the HBUP tile kept muted for talking and unlocking
-  ([docs/homekit.md](docs/homekit.md)). An HBUP option to ignore automatic
-  Access rings has been requested
+  today ([docs/homekit-bridge.md](docs/homekit-bridge.md)), with the HBUP
+  tile kept muted for talking. An HBUP option to ignore automatic Access
+  rings has been requested
   ([homebridge-unifi-protect#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363)).
+- **G3 Intercom camera in Home Assistant**: the HomeKit Bridge path needs the
+  G3 Intercom to appear as a camera in the official UniFi Protect
+  integration; still to be confirmed on real hardware.
 - **Two-way audio in Apple Home** is provided by homebridge-unifi-protect and
   depends on Protect exposing talkback for the G3 Intercom (a G3 owner
   confirmed Protect's native talkback session works). The plugin has no

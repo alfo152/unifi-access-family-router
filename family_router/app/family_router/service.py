@@ -18,8 +18,8 @@ from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Protocol
 
 from .aiotools import with_timeout
-from .config import Config
-from .discovery import discovery_messages
+from .config import Config, DoorConfig
+from .discovery import discovery_filter, discovery_messages
 from .events import parse_message
 from .mqtt import Message, MqttClient, Will
 from .router import FamilyRouter, Publish
@@ -31,6 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 #: ring triggers older than this are not delivered after an MQTT outage
 STALE_RING_SECONDS = 15.0
 UNLOCK_PAYLOADS = frozenset({"PRESS", "UNLOCK"})
+LOCK_PAYLOAD = "LOCK"
 _QUEUE_LIMIT = 500
 
 
@@ -113,7 +114,15 @@ class Service:
         self._mqtt_factory = mqtt_factory or self._default_mqtt_factory
         self._queue: deque[tuple[float, Publish]] = deque()
         self._queue_event = asyncio.Event()
-        self._last_unlock = float("-inf")
+        self._doors: dict[str, DoorConfig] = (
+            {self.topics.door_command(door): door for door in config.unlock.doors}
+            if config.unlock.enabled
+            else {}
+        )
+        self._last_unlock: dict[str, float] = {}
+        self._relock_tasks: dict[str, "asyncio.Task[None]"] = {}
+        self._discovery_filter = discovery_filter(config) if config.mqtt.discovery else ""
+        self._discovery_topics: frozenset[str] = frozenset()
         self.access_connected = False
         self.mqtt_connected = asyncio.Event()
 
@@ -160,7 +169,11 @@ class Service:
         self.access_connected = connected
 
     async def _handle_command(self, client: MqttLike, message: Message) -> None:
-        if message.topic != self.topics.unlock_command:
+        if self._discovery_filter and self._is_discovery_topic(message.topic):
+            await self._clean_discovery(client, message)
+            return
+        door = self._doors.get(message.topic)
+        if door is None:
             return
         payload = message.payload.decode("utf-8", "replace").strip().upper()
         if not payload:
@@ -171,32 +184,83 @@ class Service:
             _LOGGER.warning("Ignoring and clearing retained unlock command on %s", message.topic)
             await client.publish(message.topic, b"", qos=1, retain=True)
             return
+        label = door.name or "door"
+        if payload == LOCK_PAYLOAD:
+            # Access doors relock by themselves: just confirm the state.
+            _LOGGER.info("Lock request for %s: the door relocks by itself", label)
+            await client.publish(self.topics.door_state(door), "LOCKED", qos=1, retain=True)
+            return
         if payload not in UNLOCK_PAYLOADS:
             _LOGGER.warning("Ignoring unlock command with payload %r", payload[:20])
             return
         now = self._clock()
-        if now - self._last_unlock < self.config.unlock.cooldown_seconds:
-            _LOGGER.info("Unlock ignored: cooldown active")
+        if now - self._last_unlock.get(door.key, float("-inf")) < self.config.unlock.cooldown_seconds:
+            _LOGGER.info("Unlock of %s ignored: cooldown active", label)
             return
-        self._last_unlock = now
-        result: dict[str, Any] = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        self._last_unlock[door.key] = now
+        result: dict[str, Any] = {
+            "time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "door": door.name,
+        }
         try:
             await self.access.unlock(
-                self.config.unlock.door_id,
+                door.door_id,
                 actor_id=f"family-router-{self.config.family.id}",
                 actor_name=self.config.unlock.actor_name,
             )
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 - report every failure
-            _LOGGER.error("Unlock failed: %s", exc)
+            _LOGGER.error("Unlock of %s failed: %s", label, exc)
             result.update(ok=False, error=str(exc)[:200])
+            state = "JAMMED"
         else:
-            _LOGGER.info("Door unlocked for family '%s'", self.config.family.name)
+            _LOGGER.info("%s unlocked for family '%s'", label.capitalize(), self.config.family.name)
             result.update(ok=True)
+            state = "UNLOCKED"
         await client.publish(
-            self.topics.unlock_result, json.dumps(result, sort_keys=True), qos=1
+            self.topics.door_result(door), json.dumps(result, sort_keys=True), qos=1
         )
+        await client.publish(self.topics.door_state(door), state, qos=1, retain=True)
+        previous = self._relock_tasks.pop(door.key, None)
+        if previous is not None:
+            previous.cancel()
+        self._relock_tasks[door.key] = asyncio.create_task(
+            self._relock(client, door), name=f"relock-{door.key or 'door'}"
+        )
+
+    async def _relock(self, client: MqttLike, door: DoorConfig) -> None:
+        """Show the lock entity as locked again once the door has relocked."""
+
+        await asyncio.sleep(self.config.unlock.relock_seconds)
+        try:
+            await client.publish(self.topics.door_state(door), "LOCKED", qos=1, retain=True)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - the next session republishes it
+            _LOGGER.debug("Cannot publish the relocked state: %s", exc)
+
+    def _is_discovery_topic(self, topic: str) -> bool:
+        parts = topic.split("/")
+        prefix = self.config.mqtt.discovery_prefix.split("/")
+        return (
+            len(parts) == len(prefix) + 4
+            and parts[: len(prefix)] == prefix
+            and parts[len(prefix) + 1] == f"access_family_router_{self.config.family.id}"
+            and parts[-1] == "config"
+        )
+
+    async def _clean_discovery(self, client: MqttLike, message: Message) -> None:
+        """Remove entities this family published earlier but no longer has.
+
+        Renaming or removing a door would otherwise leave an "unavailable"
+        entity behind in Home Assistant.
+        """
+
+        if not message.payload or message.topic in self._discovery_topics:
+            return
+        _LOGGER.info("Removing an entity that is no longer configured: %s", message.topic)
+        await client.publish(message.topic, b"", qos=1, retain=True)
 
     async def _log_doors(self) -> None:
         """Learn mode helper: print the door IDs (needed for unlock.door_id)."""
@@ -214,9 +278,13 @@ class Service:
             )
             return
         for door in doors:
+            name = door.get("full_name") or door.get("name") or "?"
+            short = str(door.get("name") or name).strip()
             _LOGGER.warning(
-                "LEARN: door '%s' -> door_id %s",
-                door.get("full_name") or door.get("name") or "?",
+                "LEARN: door '%s' -> door_id %s (add-on: unlock.doors \"%s=%s\")",
+                name,
+                door.get("id", "?"),
+                short,
                 door.get("id", "?"),
             )
 
@@ -246,12 +314,19 @@ class Service:
 
     async def _mqtt_session(self, client: MqttLike) -> None:
         await client.publish(self.topics.status, "online", qos=1, retain=True)
-        for message in discovery_messages(self.config, self.topics):
+        discovery = discovery_messages(self.config, self.topics)
+        self._discovery_topics = frozenset(m.topic for m in discovery if m.payload)
+        for message in discovery:
             await client.publish(message.topic, message.payload, message.qos, message.retain)
         for message in self.router.reset_messages():
             await client.publish(message.topic, message.payload, message.qos, message.retain)
-        if self.config.unlock.enabled:
-            await client.subscribe(self.topics.unlock_command, qos=1)
+        for door in self._doors.values():
+            await client.publish(self.topics.door_state(door), "LOCKED", qos=1, retain=True)
+        for topic in self._doors:
+            await client.subscribe(topic, qos=1)
+        if self._discovery_filter:
+            # retained discovery configs arrive right away: stale ones are removed
+            await client.subscribe(self._discovery_filter, qos=1)
         self.mqtt_connected.set()
         _LOGGER.info(
             "MQTT ready on %s:%s (topics under %s)",
@@ -270,7 +345,9 @@ class Service:
                 task.result()  # re-raise the reason
             raise ConnectionError("MQTT session ended")
         finally:
-            await _cancel_and_wait(tasks)
+            relocks = list(self._relock_tasks.values())
+            self._relock_tasks.clear()
+            await _cancel_and_wait(tasks + relocks)
 
     async def _mqtt_loop(self) -> None:
         delay = self._mqtt_initial_backoff

@@ -126,11 +126,63 @@ class ConfigTests(unittest.TestCase):
             cert.cleanup()
 
     def test_unlock_requires_door(self) -> None:
-        with self.assertRaisesRegex(ConfigError, "door_id"):
+        with self.assertRaisesRegex(ConfigError, "unlock.doors"):
             make_config(unlock={"enabled": True})
         cfg = make_config(unlock={"enabled": True, "door_id": "d1", "actor_name": "Casa A"})
         self.assertEqual(cfg.unlock.door_id, "d1")
         self.assertEqual(cfg.unlock.actor_name, "Casa A")
+
+    def test_unlock_doors(self) -> None:
+        cfg = make_config(unlock={"enabled": True, "doors": [
+            "Portone=0ed545f8-2fcd-4839-9021-b39e707f6aa9",
+            " Cancello carrabile = a8f2c6d1 ",
+            {"name": "Garage", "door_id": "g-1"},
+            {"name": "Ingresso più", "door_id": "i-1"},
+            {"name": "🚪", "door_id": "e-1", "id": "emoji_door"},
+            "",
+        ]})
+        doors = cfg.unlock.doors
+        self.assertEqual([d.key for d in doors],
+                         ["portone", "cancello_carrabile", "garage", "ingresso_piu", "emoji_door"])
+        self.assertEqual(doors[1].name, "Cancello carrabile")
+        self.assertEqual(doors[1].door_id, "a8f2c6d1")
+        self.assertEqual(cfg.unlock.door_id, "0ed545f8-2fcd-4839-9021-b39e707f6aa9")
+        self.assertEqual(cfg.unlock.relock_seconds, 5.0)
+
+    def test_unlock_single_door_is_kept(self) -> None:
+        cfg = make_config(unlock={"enabled": True, "door_id": "d1"})
+        self.assertEqual(len(cfg.unlock.doors), 1)
+        self.assertEqual((cfg.unlock.doors[0].key, cfg.unlock.doors[0].name), ("", ""))
+        self.assertEqual(make_config(unlock={"enabled": False, "door_id": "d1"}).unlock.doors, ())
+
+    def test_unlock_doors_errors(self) -> None:
+        cases = [
+            ({"doors": ["Portone"]}, "Name=door_id"),
+            ({"doors": ["=abc"]}, "needs a name"),
+            ({"doors": ["Portone="]}, "needs a door_id"),
+            ({"doors": ["Portone=a b"]}, "invalid door_id"),
+            ({"doors": ["Portone=a/b"]}, "invalid door_id"),
+            ({"doors": ["🚪=x"]}, "letters or digits"),
+            ({"doors": [{"name": "A", "door_id": "x", "id": "Bad Id"}]}, "letters or digits"),
+            ({"doors": ["Portone=x", "portone=y"]}, "share the name"),
+            ({"doors": ["Portone=x", "Cancello=x"]}, "listed twice"),
+            ({"doors": [f"D{i}=id{i}" for i in range(11)]}, "at most 10"),
+            ({"doors": "Portone=x"}, "must be a list"),
+            ({"doors": [42]}, "Name=door_id"),
+            ({"door_id": "x", "doors": ["Portone=y"]}, "not both"),
+            ({"enabled": True}, "unlock.doors"),
+            ({"relock_seconds": 0}, "relock_seconds"),
+        ]
+        for unlock, message in cases:
+            with self.subTest(unlock=unlock):
+                with self.assertRaisesRegex(ConfigError, message):
+                    make_config(unlock={"enabled": True, **unlock})
+        # while unlock is off, an unfinished door list does not block the router
+        self.assertEqual(make_config(unlock={"enabled": False, "doors": ["Portone="]}).unlock.doors, ())
+
+    def test_family_slug_folds_accents(self) -> None:
+        cfg = make_config(family={"name": "Famiglia Città", "id": None})
+        self.assertEqual(cfg.family.id, "famiglia_citta")
 
     def test_numbers_validated(self) -> None:
         with self.assertRaisesRegex(ConfigError, "access.port"):

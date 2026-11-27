@@ -1,10 +1,14 @@
 # Apple Home (HomeKit)
 
-Each family pairs **its own Homebridge** with **its own Apple Home**. Live
-video, two-way audio and the unlock tile come from
-[homebridge-unifi-protect](https://github.com/hjdhjd/homebridge-unifi-protect)
-(HBUP, version 8.0 or later, Homebridge 2.0). This project decides *when*
-that family's doorbell rings.
+🇮🇹 [Leggi in italiano](it/homekit.md)
+
+Each family uses **its own Apple Home**, paired only with its own Home
+Assistant and its own Homebridge. Two pieces work together:
+
+| Piece | Gives | Guide |
+| --- | --- | --- |
+| **Home Assistant HomeKit Bridge** | Doorbell that rings **only for this family**, snapshot, live video, one lock tile per door | [homekit-bridge.md](homekit-bridge.md) |
+| **homebridge-unifi-protect** (HBUP 8.0+, Homebridge 2.0), tile kept **muted** | **Talk** to the visitor (two-way audio) | this page, steps 1–2 |
 
 ## 1. Install Homebridge and the plugin
 
@@ -32,7 +36,7 @@ that family's doorbell rings.
 Pair the Homebridge bridge with **this family's** Apple Home only (QR code in
 the Homebridge UI).
 
-## 3. Ringing one family only
+## 3. Why the ring goes through Home Assistant
 
 HBUP 8.0+ turns every press of an Access intercom into a HomeKit ring, so in
 a multi-family building every family would ring.
@@ -41,34 +45,26 @@ a multi-family building every family would ring.
 > the automatic intercom ring and the MQTT `doorbell/set` trigger both go
 > through the same `doorbellEventHandler`, which skips the HomeKit ring when
 > `Doorbell.Mute` is on. So with HBUP alone you get either every ring or
-> none: the "mute + MQTT trigger" idea of earlier versions of this guide
-> does **not** work. A small HBUP option (ignore automatic Access rings, keep
-> MQTT/Trigger rings) has been requested from the author
-> ([hjdhjd/homebridge-unifi-protect#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363));
-> this guide will be updated if it arrives.
+> none. A small HBUP option (ignore automatic Access rings, keep MQTT/Trigger
+> rings) has been requested from the author
+> ([hjdhjd/homebridge-unifi-protect#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363)).
+> If it arrives, one HBUP tile will do everything: the router already
+> publishes `doorbell/set` for this family only.
 
-### Ring through the Home Assistant HomeKit Bridge (works today)
-
-Home Assistant exposes the G3 camera to Apple Home with this project's
-**Doorbell** event entity as `linked_doorbell_sensor`
-([`examples/ha-homekit-bridge.yaml`](../examples/ha-homekit-bridge.yaml)).
-Only this family's calls fire that event, so only this family rings, with a
-snapshot in the notification and live video.
-
-The Home Assistant bridge does not support talking back, so keep the HBUP
-intercom tile **muted** (step 2) to **talk** and to **unlock**: one tile
-rings, the other one talks.
-
-**Test (2 minutes):** call another family from the intercom → nothing rings
-in your Apple Home. Call your family → the router logs `Ring … for family …`
-and the bridge camera rings in the Home app.
+The Home Assistant HomeKit Bridge works **today**: it exposes the G3 camera
+with this project's **Doorbell** event entity as `linked_doorbell_sensor`.
+Only this family's calls fire that event, so only this family rings.
+Step-by-step guide and ready-to-copy package:
+**[homekit-bridge.md](homekit-bridge.md)**.
 
 ## 4. Talking and unlocking
 
-- **Talk**: open the intercom tile in the Home app and press the microphone.
-  HBUP has no echo cancellation: you hear your own voice, the visitor hears
-  you normally. Two-way audio depends on Protect exposing talkback for the G3
-  Intercom; check it during the test.
-- **Unlock**: HBUP adds a lock accessory that can unlock Access doors on the
-  same console (unlock only: the lock closes again by itself). The Home
-  Assistant Unlock button of this project is an alternative.
+- **Talk**: open the muted HBUP intercom tile in the Home app and press the
+  microphone. HBUP has no echo cancellation: you hear your own voice, the
+  visitor hears you normally. Two-way audio depends on Protect exposing
+  talkback for the G3 Intercom; check it during the test. The Home Assistant
+  bridge camera does not talk back.
+- **Unlock**: use the lock tiles of the Home Assistant bridge (one per door,
+  Face ID / Touch ID required, the Access log shows this family's name).
+  HBUP also adds a lock accessory for Access doors on the same console; keep
+  only one of the two to avoid duplicate tiles.

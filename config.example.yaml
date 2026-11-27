@@ -1,52 +1,78 @@
 # UniFi Access Family Router - example configuration (standalone / Docker).
-# One file per family. Every family runs its own copy of the router, with its
-# own token, its own MQTT broker, its own Homebridge and its own Home Assistant.
+# Esempio di configurazione (programma da solo / Docker).
+# EN: one file per family. Every family runs its own copy of the router, with
+#     its own token, MQTT broker, Homebridge and Home Assistant.
+# IT: un file per famiglia. Ogni famiglia ha la sua copia del router, con il
+#     suo token, broker MQTT, Homebridge e Home Assistant.
 
 access:
-  # IP of the UniFi console running UniFi Access (e.g. the UCG-Max).
+  # EN: IP of the UniFi console running UniFi Access (e.g. the UCG-Max).
+  # IT: IP della console UniFi con UniFi Access (per esempio l'UCG-Max).
   host: 192.168.50.1
   port: 12445
-  # Access > Settings > General > Advanced > API Token.
-  # Permissions: view:device (required) + view:space and edit:space (only for unlock).
+  # EN: Access > Settings > General > Advanced > API Token. Permissions:
+  #     view:device (required) + view:space and edit:space (only to open doors).
+  # IT: Access > Impostazioni > Generali > Avanzate > API Token. Permessi:
+  #     view:device (obbligatorio) + view:space ed edit:space (solo per aprire).
   token: "PASTE-THE-FAMILY-TOKEN-HERE"
-  # SHA-256 of the console certificate (python -m family_router --fingerprint 192.168.50.1).
-  # Strongly recommended: the connection is refused if the certificate changes.
+  # EN: SHA-256 of the console certificate (python -m family_router
+  #     --fingerprint 192.168.50.1). Strongly recommended.
+  # IT: impronta SHA-256 del certificato della console (python -m
+  #     family_router --fingerprint 192.168.50.1). Fortemente consigliata.
   tls_fingerprint: ""
 
 family:
   name: "Famiglia Rossi"
   id: rossi
   match:
-    # room_id of this family's directory entry on the intercom.
-    # Run once with learn_mode: true, call the entry from the intercom, copy the value.
+    # EN: room_id of this family's directory entry (from learn mode).
+    # IT: room_id della voce di questa famiglia in rubrica (dalla modalità
+    #     apprendimento).
     room_ids:
       - "WR-e4388386be1d-3YSCjtuV5VuyfLT46mUXnnY2q5KQfKxX"
-    # Optional extra rules:
-    door_guard_ids: []   # ring if one of these receiver IDs is in the call
-    device_ids: []       # only react to these intercom device IDs
-    ring_all: false      # true only for a single-family building
+    # EN: optional extra rules / IT: regole extra facoltative
+    door_guard_ids: []   # EN: receiver IDs / IT: ID dei destinatari
+    device_ids: []       # EN: only these intercoms / IT: solo questi citofoni
+    ring_all: false      # EN: single-family building only / IT: solo palazzo con una famiglia
 
 mqtt:
-  host: 192.168.60.10    # the family's own broker
+  host: 192.168.60.10    # EN: the family's own broker / IT: il broker della famiglia
   port: 1883
   username: router
   password: "change-me"
   base_topic: access_family_router
-  discovery: true        # create the entities in Home Assistant
+  discovery: true        # EN: create the Home Assistant entities / IT: crea le entità in Home Assistant
   discovery_prefix: homeassistant
 
 homebridge:
-  # Ring the family's Apple Home through homebridge-unifi-protect (MQTT doorbell/set).
+  # EN: trigger the homebridge-unifi-protect doorbell (MQTT doorbell/set).
+  #     With Doorbell.Mute on, HBUP 8.4 stays silent: Apple Home rings through
+  #     the Home Assistant HomeKit Bridge (docs/homekit-bridge.md).
+  # IT: fa suonare il campanello di homebridge-unifi-protect (MQTT
+  #     doorbell/set). Con Doorbell.Mute acceso HBUP 8.4 resta muto: Apple
+  #     Casa squilla tramite il HomeKit Bridge di Home Assistant
+  #     (docs/it/homekit-bridge.md).
   enabled: true
   topic_prefix: unifi/protect      # = "mqttTopic" in homebridge-unifi-protect
-  camera_mac: "F4:E2:C6:12:34:56"  # MAC of the G3 Intercom as shown in UniFi Protect
+  camera_mac: "F4:E2:C6:12:34:56"  # EN: G3 Intercom MAC in Protect / IT: MAC del G3 in Protect
 
 unlock:
-  # Adds an "Unlock" button in Home Assistant (token needs view:space + edit:space).
+  # EN: one "Unlock ..." button and one lock (for Apple Home) per door, up to
+  #     10. The token needs view:space + edit:space. Door IDs:
+  # IT: un pulsante "Unlock ..." e una serratura (per Apple Casa) per porta,
+  #     fino a 10. Il token deve avere view:space + edit:space. ID delle porte:
+  #   python -m family_router --config config.yaml --list-doors
   enabled: false
-  door_id: ""            # python -m family_router --config config.yaml --list-doors
+  doors:
+    - name: Portone
+      door_id: ""
+    # - name: Cancello
+    #   door_id: ""
+    # EN: the short form "Portone=<door_id>" works too (Home Assistant add-on).
+    # IT: va bene anche la forma breve "Portone=<door_id>" (add-on).
   actor_name: "Famiglia Rossi (Home Assistant)"
-  cooldown_seconds: 3
+  cooldown_seconds: 3    # EN: ignore repeated presses / IT: ignora le pressioni ripetute
+  relock_seconds: 5      # EN: seconds shown "unlocked" / IT: secondi in cui risulta aperta
 
 learn_mode: false
 call_timeout_seconds: 60

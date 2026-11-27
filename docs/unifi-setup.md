@@ -1,5 +1,7 @@
 # UniFi setup
 
+🇮🇹 [Leggi in italiano](it/unifi-setup.md)
+
 Done once, by whoever manages the shared console in the stairwell.
 
 ## 1. Console and devices
@@ -33,7 +35,7 @@ The PDF of the official API reference can be downloaded from the same page.
 | Token name | Permissions | Used for |
 | --- | --- | --- |
 | `family-router-a` | `view:device` | calls (required) |
-| | + `view:space`, `edit:space` | only if family A gets the Unlock button |
+| | + `view:space`, `edit:space` | only if family A opens doors (buttons and lock tiles) |
 
 Repeat for every family. The token is shown **once**: give it to that family
 only. Revoke it if the family moves out.

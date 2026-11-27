@@ -88,6 +88,11 @@ async def _list_doors(config: Config) -> int:
             f"{str(door.get('id', '')):38}  {str(door.get('full_name') or door.get('name', '')):30}  "
             f"{'yes' if door.get('is_bind_hub') else 'no'}"
         )
+    print()
+    print("For 'unlock.doors' (rename freely, one line per door):")
+    for door in doors:
+        name = str(door.get("name") or door.get("full_name") or "Door").strip()
+        print(f'  - "{name}={door.get("id", "")}"')
     return 0
 
 
@@ -114,7 +119,8 @@ async def _check(config: Config) -> int:
         print("Note: doors are only needed when 'unlock.enabled' is true.")
         return 0
     if config.unlock.enabled and result == 0:
-        print(f"Unlock is enabled for door_id {config.unlock.door_id}.")
+        for door in config.unlock.doors:
+            print(f"Unlock is enabled for {door.name or 'the door'} (door_id {door.door_id}).")
     return result
 
 

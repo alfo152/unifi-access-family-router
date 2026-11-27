@@ -1,0 +1,45 @@
+# Intercom package for ONE family - Pacchetto citofono per UNA famiglia
+#
+# EN: copy this file to /config/packages/intercom.yaml in THIS family's Home
+#     Assistant and replace the entity IDs marked with <<< (see
+#     docs/homekit-bridge.md). Each family has its own copy, its own Home
+#     Assistant and its own Apple Home.
+# IT: copia questo file in /config/packages/intercom.yaml nel Home Assistant
+#     di QUESTA famiglia e sostituisci gli ID segnati con <<< (vedi
+#     docs/it/homekit-bridge.md). Ogni famiglia ha la sua copia, il suo Home
+#     Assistant e la sua Apple Casa.
+
+# EN: each name: 3-25 characters; names and ports must be unique.
+# IT: ogni name: da 3 a 25 caratteri; nomi e porte devono essere unici.
+homekit:
+  # 1) EN: video doorbell that rings only for this family's calls.
+  #        Accessory mode = one entity, as Home Assistant advises for cameras.
+  #    IT: videocitofono che squilla solo per le chiamate di questa famiglia.
+  #        Modalità accessorio = una sola entità, come consiglia Home Assistant
+  #        per le telecamere.
+  - name: Citofono
+    port: 21071
+    mode: accessory
+    filter:
+      include_entities:
+        - camera.g3_intercom_high  # <<< G3 Intercom camera / telecamera del G3
+    entity_config:
+      camera.g3_intercom_high:  # <<< the same camera / la stessa telecamera
+        name: Citofono
+        # <<< this family's Doorbell entity / entità Campanello di questa famiglia
+        linked_doorbell_sensor: event.intercom_famiglia_rossi_doorbell
+        support_audio: true
+
+  # 2) EN: one lock per door (router option unlock.doors). HomeKit asks for
+  #        Face ID / Touch ID / passcode before a lock opens remotely.
+  #        Delete this block if this family does not unlock doors.
+  #    IT: una serratura per porta (opzione unlock.doors del router). HomeKit
+  #        chiede Face ID / Touch ID / codice prima di aprire da remoto.
+  #        Cancella questo blocco se questa famiglia non apre porte.
+  - name: Porte Famiglia Rossi
+    port: 21072
+    mode: bridge
+    filter:
+      include_entities:
+        - lock.intercom_famiglia_rossi_portone  # <<< door 1 / porta 1
+        - lock.intercom_famiglia_rossi_cancello  # <<< door 2 / porta 2
