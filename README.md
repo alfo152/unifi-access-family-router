@@ -236,7 +236,8 @@ the same options (match rules directly under `family`).
   rings in Apple Home therefore go through the Home Assistant HomeKit Bridge
   today, with the HBUP tile kept muted for talking and unlocking
   ([docs/homekit.md](docs/homekit.md)). An HBUP option to ignore automatic
-  Access rings has been requested.
+  Access rings has been requested
+  ([homebridge-unifi-protect#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363)).
 - **Two-way audio in Apple Home** is provided by homebridge-unifi-protect and
   depends on Protect exposing talkback for the G3 Intercom (a G3 owner
   confirmed Protect's native talkback session works). The plugin has no

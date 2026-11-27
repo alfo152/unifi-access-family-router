@@ -43,8 +43,9 @@ a multi-family building every family would ring.
 > `Doorbell.Mute` is on. So with HBUP alone you get either every ring or
 > none: the "mute + MQTT trigger" idea of earlier versions of this guide
 > does **not** work. A small HBUP option (ignore automatic Access rings, keep
-> MQTT/Trigger rings) has been requested from the author; this guide will be
-> updated if it arrives.
+> MQTT/Trigger rings) has been requested from the author
+> ([hjdhjd/homebridge-unifi-protect#1363](https://github.com/hjdhjd/homebridge-unifi-protect/issues/1363));
+> this guide will be updated if it arrives.
 
 ### Ring through the Home Assistant HomeKit Bridge (works today)
 
