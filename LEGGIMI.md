@@ -2,6 +2,8 @@
 
 🇬🇧 [Read in English](README.md)
 
+![Un G3 Intercom, tre famiglie: il visitatore chiama la Famiglia A, squilla solo la Famiglia A](docs/images/hero-it.png)
+
 **Un G3 Intercom UniFi, più famiglie, ognuna con il suo Home Assistant e la
 sua Apple Casa: squilla solo la famiglia che il visitatore ha chiamato.**
 

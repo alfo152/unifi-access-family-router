@@ -2,6 +2,8 @@
 
 🇮🇹 [Leggi in italiano](LEGGIMI.md)
 
+![One G3 Intercom, three families: the visitor calls Family A, only Family A rings](docs/images/hero-en.png)
+
 **One UniFi G3 Intercom, several families, each with its own Home Assistant
 and its own Apple Home: only the family the visitor called gets the ring.**
 
